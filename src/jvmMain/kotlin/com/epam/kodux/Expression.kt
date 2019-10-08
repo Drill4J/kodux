@@ -1,4 +1,4 @@
-package com.epam.xodus
+package com.epam.kodux
 
 import jetbrains.exodus.entitystore.*
 import kotlin.reflect.*

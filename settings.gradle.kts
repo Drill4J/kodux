@@ -1,2 +1,2 @@
-rootProject.name = "kodux-jvm"
+rootProject.name = "kodux"
 enableFeaturePreview("GRADLE_METADATA")

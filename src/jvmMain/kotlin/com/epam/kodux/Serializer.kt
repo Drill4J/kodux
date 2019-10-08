@@ -1,6 +1,6 @@
 @file:Suppress("UNCHECKED_CAST")
 
-package com.epam.xodus
+package com.epam.kodux
 
 import jetbrains.exodus.bindings.*
 import jetbrains.exodus.entitystore.*

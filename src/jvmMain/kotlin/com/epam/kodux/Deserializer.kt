@@ -1,6 +1,6 @@
 @file:Suppress("UNCHECKED_CAST")
 
-package com.epam.xodus
+package com.epam.kodux
 
 import jetbrains.exodus.entitystore.*
 import kotlinx.serialization.*
@@ -93,8 +93,8 @@ class XodusDecoder(private val txn: StoreTransaction, private val ent: Entity) :
     private fun <T> parseListBasedObject(des: ListLikeSerializer<*, *, *>, objects: Iterable<Any?>): T {
         return when (des) {
             is ArrayListSerializer<*> -> objects.toMutableList() as T
-            is HashSetSerializer<*> -> objects.toSet() as T
-            is LinkedHashSetSerializer<*> -> objects.toSet() as T
+            is HashSetSerializer<*> -> objects.toMutableSet() as T
+            is LinkedHashSetSerializer<*> -> objects.toMutableSet() as T
             is ReferenceArraySerializer<*, *> -> TODO("not implemented yet")
             is PrimitiveArraySerializer<*, *, *> -> TODO("not implemented yet")
         }

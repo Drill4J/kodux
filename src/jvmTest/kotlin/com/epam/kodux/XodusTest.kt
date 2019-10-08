@@ -1,11 +1,7 @@
 @file:Suppress("BlockingMethodInNonBlockingContext")
 
-package com.epam.drill
+package com.epam.kodux
 
-import com.epam.drill.xodus.*
-import com.epam.xodus.Id
-import com.epam.xodus.StoreClient
-import com.epam.xodus.StoreManger
 import kotlinx.coroutines.*
 import kotlinx.serialization.*
 import org.junit.*
@@ -104,6 +100,7 @@ class XodusTest {
     fun `should thrown an error if object is already exists`() = runBlocking {
         agentStore.store(complexObject.copy(id = "1"))
         agentStore.store(complexObject.copy(id = "1"))
+        Unit
     }
 
     @Test(expected = Exception::class)

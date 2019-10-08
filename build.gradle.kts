@@ -1,12 +1,12 @@
 import org.jetbrains.kotlin.gradle.tasks.*
 
 plugins {
-    kotlin("jvm")
-    id("kotlinx-serialization")
+    `kotlin-multiplatform`
+    `kotlinx-serialization`
     `maven-publish`
     idea
 }
-
+apply(from = "https://raw.githubusercontent.com/Drill4J/build-scripts/master/publish.gradle")
 repositories {
     mavenLocal()
     mavenCentral()
@@ -14,14 +14,32 @@ repositories {
 
 }
 
-dependencies{
-    implementation(kotlin("stdlib-jdk8"))
-    implementation(kotlin("reflect"))
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.3.2")
-    implementation("org.jetbrains.xodus:xodus-entity-store:1.3.91")
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-runtime:0.13.0")
-    testImplementation(kotlin("test-junit"))
+kotlin {
+    jvm()
+    sourceSets {
+        named("commonMain") {
+            dependencies {
+                implementation("org.jetbrains.kotlin:kotlin-stdlib-common")
+                implementation("org.jetbrains.kotlinx:kotlinx-serialization-runtime-common:0.13.0")
+            }
+        }
+        named("jvmMain") {
+            dependencies {
+                implementation(kotlin("stdlib-jdk8"))
+                implementation(kotlin("reflect"))
+                implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.3.2")
+                implementation("org.jetbrains.xodus:xodus-entity-store:1.3.91")
+                implementation("org.jetbrains.kotlinx:kotlinx-serialization-runtime:0.13.0")
+            }
+        }
+        named("jvmTest") {
+            dependencies {
+                implementation(kotlin("test-junit"))
+            }
+        }
+    }
 }
+
 
 tasks {
 
