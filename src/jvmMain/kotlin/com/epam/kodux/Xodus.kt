@@ -3,7 +3,6 @@
 package com.epam.kodux
 
 import jetbrains.exodus.entitystore.*
-import jetbrains.exodus.env.Transaction
 import kotlinx.coroutines.*
 import kotlinx.serialization.*
 import java.io.*
@@ -55,16 +54,45 @@ class StoreClient(val store: PersistentEntityStoreImpl, val unsafeMode: Boolean 
         }
     }
 
+    inline fun <reified T : Any> findBy(crossinline expression: Expression<T>.() -> Unit) =
+            runBlocking(Dispatchers.IO) { computeWithExpression(expression, Expression()) }
+
+
+    suspend inline fun <reified T : Any> deleteById(id: Any) = withContext(Dispatchers.IO) {
+        computeInTransaction { txn ->
+            val serializer = T::class.serializer()
+            val ent = txn.find(T::class.simpleName!!, idName(serializer.descriptor)!!, id as Comparable<*>).firstOrNull()
+                    ?: return@computeInTransaction null
+            deleteEntityRecursively(ent)
+
+        }
+    }
+
+    inline fun <reified T : Any> deleteBy(crossinline expression: Expression<T>.() -> Unit) =
+            runBlocking(Dispatchers.IO) {
+                computeInTransaction { txn ->
+                    val expr = Expression<T>()
+                    expression(expr)
+                    val entityIterable = expr.process(txn, T::class)
+                    entityIterable.forEach { deleteEntityRecursively(it) }
+                }
+            }
+
+    fun deleteEntityRecursively(entity: Entity) {
+        entity.linkNames.forEach { lName ->
+            entity.getLinks(lName).forEach { subEnt -> deleteEntityRecursively(subEnt) }
+            entity.deleteLinks(lName)
+        }
+        entity.delete()
+    }
+
+
     inline fun <reified T : Any> StoreTransaction.findEntity(any: T): Entity? {
         val (idName, value) = idPair(any)
         checkNotNull(idName) { "you should provide @Id for main entity" }
         checkNotNull(value)
         return this.find(T::class.simpleName.toString(), idName, value as Comparable<*>).firstOrNull()
     }
-
-    inline fun <reified T : Any> findBy(crossinline expression: Expression<T>.() -> Unit) =
-            runBlocking(Dispatchers.IO) { computeWithExpression(expression, Expression()) }
-
 
     inline fun <reified T : Any> computeWithExpression(
             crossinline expression: Expression<T>.() -> Unit, expr: Expression<T>
@@ -84,7 +112,8 @@ class StoreManger(private val baseLocation: File = File("./").resolve("agent")) 
         return storages.getOrPut(baseLocation.absolutePath, {
             val store = PersistentEntityStores.newInstance(baseLocation.resolve(agentId))
 
-            StoreClient(store) })
+            StoreClient(store)
+        })
     }
 }
 

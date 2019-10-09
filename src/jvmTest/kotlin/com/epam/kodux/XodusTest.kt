@@ -2,12 +2,15 @@
 
 package com.epam.kodux
 
-import kotlinx.coroutines.*
-import kotlinx.serialization.*
-import org.junit.*
+import kotlinx.coroutines.runBlocking
+import kotlinx.serialization.Serializable
+import org.junit.Rule
 import org.junit.Test
-import org.junit.rules.*
-import kotlin.test.*
+import org.junit.rules.TemporaryFolder
+import kotlin.test.AfterTest
+import kotlin.test.BeforeTest
+import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 enum class EN {
     B, C
@@ -74,6 +77,25 @@ class XodusTest {
         agentStore.store(complexObject)
         assertTrue(agentStore.getAll<ComplexObject>().isNotEmpty())
     }
+
+    @Test
+    fun `should remove entities of a complex object by ID recursively`() = runBlocking {
+        agentStore.store(complexObject)
+        agentStore.deleteById<ComplexObject> ("str")
+        assertTrue(agentStore.getAll<ComplexObject>().isEmpty())
+        assertTrue(agentStore.getAll<SubObject>().isEmpty())
+        assertTrue(agentStore.getAll<Last>().isEmpty())
+    }
+
+    @Test
+    fun `should remove entities of a complex object by Prop recursively`() = runBlocking {
+        agentStore.store(complexObject)
+        agentStore.deleteBy<ComplexObject> {ComplexObject::en eq EN.C }
+        assertTrue(agentStore.getAll<ComplexObject>().isEmpty())
+        assertTrue(agentStore.getAll<SubObject>().isEmpty())
+        assertTrue(agentStore.getAll<Last>().isEmpty())
+    }
+
 
     @Test
     fun `should store linked objects`() = runBlocking {

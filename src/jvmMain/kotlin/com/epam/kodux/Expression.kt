@@ -9,11 +9,18 @@ class Expression<Q : Any> {
         return exprCallback(transaction, cklas)
     }
 
-    infix fun <Q, R : Comparable<*>> KProperty1<Q, R>.startsWith(r: R) {
-        exprCallback = { it -> findStartingWith(it.simpleName.toString(), this@startsWith.name, r.toString()) }
+    infix fun <Q, R : Comparable<*>> KProperty1<Q, R>.startsWith(r: String) {
+        exprCallback = {
+            findStartingWith(it.simpleName.toString(), this@startsWith.name, r)
+        }
     }
 
+    @Suppress("IMPLICIT_CAST_TO_ANY")
     infix fun <Q, R : Comparable<*>> KProperty1<Q, R>.eq(r: R) {
-        exprCallback = { it -> find(it.simpleName.toString(), this@eq.name, r) }
+        val toString = when (r) {
+            is Enum<*> -> r.ordinal
+            else -> r.toString()
+        } as Comparable<*>
+        exprCallback = { it -> find(it.simpleName.toString(), this@eq.name, toString) }
     }
 }
