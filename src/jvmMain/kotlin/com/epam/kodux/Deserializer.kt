@@ -50,7 +50,7 @@ class XodusDecoder(private val txn: StoreTransaction, private val ent: Entity) :
     }
 
     private fun decodeTaggedNotNullMark(@Suppress("UNUSED_PARAMETER") tag: String): Boolean {
-        return false
+        return ent.getProperty(tag) != null || ent.getLink(tag) != null
     }
 
     private fun decodeTaggedShort(tag: String): Short {
@@ -62,6 +62,10 @@ class XodusDecoder(private val txn: StoreTransaction, private val ent: Entity) :
     }
 
     private fun <T> decodeTaggedObject(tag: String, des: DeserializationStrategy<T>): T {
+        return restoreObject(des, ent, tag)
+    }
+
+    private fun <T> restoreObject(des: DeserializationStrategy<T>, ent: Entity, tag: String): T {
         return when (des) {
             is EnumSerializer -> this.decode(des)
             is ListLikeSerializer<*, *, *> -> {
@@ -74,9 +78,10 @@ class XodusDecoder(private val txn: StoreTransaction, private val ent: Entity) :
             is MapLikeSerializer<*, *, *, *> -> {
                 val link = checkNotNull(ent.getLink(tag)) { "nullable collections are not supported yet" }
                 val size = link.getProperty(SIZE_PROPERTY_NAME) as Int
-                (0 until size).associateWith {
+                val associateWith = (0 until size).associate {
                     parseElement(des.keySerializer, link, "k$it") to parseElement(des.valueSerializer, link, "v$it")
-                } as T
+                }
+                associateWith as T
             }
             else -> {
                 XodusDecoder(txn, checkNotNull(ent.getLink(tag)) { "should be not null" }).decode(des)
@@ -85,9 +90,10 @@ class XodusDecoder(private val txn: StoreTransaction, private val ent: Entity) :
     }
 
     private fun parseElement(targetSerializer: KSerializer<out Any?>, link: Entity, propertyName: String) =
-            if (targetSerializer !is GeneratedSerializer<*>)
-                link.getProperty(propertyName)
-            else
+            if (targetSerializer !is GeneratedSerializer<*>) {
+                link.getProperty(propertyName) ?: restoreObject(targetSerializer, link, propertyName)
+
+            } else
                 XodusDecoder(txn, link.getLink(propertyName)!!).decode(targetSerializer)
 
     private fun <T> parseListBasedObject(des: ListLikeSerializer<*, *, *>, objects: Iterable<Any?>): T {

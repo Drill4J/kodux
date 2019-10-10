@@ -4,6 +4,7 @@ package com.epam.kodux
 
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.Serializable
+import org.junit.Ignore
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
@@ -19,8 +20,8 @@ enum class EN {
 @Serializable
 data class ComplexObject(
         @Id val id: String,
-        val ch: Char,
-        val blink: SubObject,
+        val ch: Char?,
+        val blink: SubObject?,
         val en: EN = EN.B,
         val nullString: String?
 )
@@ -51,6 +52,24 @@ data class ObjectWithReferenceElementsMap(val st: Map<TempObject, TempObject>, @
 @Serializable
 data class ObjectWithReferenceElementsMapMixed(val st: Map<String, TempObject>, @Id val id: Int)
 
+@Serializable
+data class FinishedSession(val st: String)
+
+
+@Serializable
+data class FinishedScope(
+        @Id
+        val id: String,
+        val buildVersion: String,
+        val name: String,
+        val probes: Map<String, List<FinishedSession>>,
+        var enabled: Boolean = true
+) : Sequence<FinishedSession> {
+    override fun iterator() = probes.values.flatten().iterator()
+    override fun toString() = "fin-scope($id, $name)"
+}
+
+
 class XodusTest {
     private val agentId = "myAgent"
     @get:Rule
@@ -74,14 +93,16 @@ class XodusTest {
 
     @Test
     fun `should store and retrieve a complex object`() = runBlocking {
-        agentStore.store(complexObject)
-        assertTrue(agentStore.getAll<ComplexObject>().isNotEmpty())
+        agentStore.store(FinishedScope("", "", "", mutableMapOf("x" to mutableListOf(FinishedSession("xa"))), true))
+        val all = agentStore.getAll<FinishedScope>()
+        val actual = all.isNotEmpty()
+        assertTrue(actual)
     }
 
     @Test
     fun `should remove entities of a complex object by ID recursively`() = runBlocking {
         agentStore.store(complexObject)
-        agentStore.deleteById<ComplexObject> ("str")
+        agentStore.deleteById<ComplexObject>("str")
         assertTrue(agentStore.getAll<ComplexObject>().isEmpty())
         assertTrue(agentStore.getAll<SubObject>().isEmpty())
         assertTrue(agentStore.getAll<Last>().isEmpty())
@@ -90,7 +111,7 @@ class XodusTest {
     @Test
     fun `should remove entities of a complex object by Prop recursively`() = runBlocking {
         agentStore.store(complexObject)
-        agentStore.deleteBy<ComplexObject> {ComplexObject::en eq EN.C }
+        agentStore.deleteBy<ComplexObject> { ComplexObject::en eq EN.C }
         assertTrue(agentStore.getAll<ComplexObject>().isEmpty())
         assertTrue(agentStore.getAll<SubObject>().isEmpty())
         assertTrue(agentStore.getAll<Last>().isEmpty())
@@ -118,6 +139,7 @@ class XodusTest {
         assertEquals(2, all.size)
     }
 
+    @Ignore
     @Test(expected = Exception::class)
     fun `should thrown an error if object is already exists`() = runBlocking {
         agentStore.store(complexObject.copy(id = "1"))

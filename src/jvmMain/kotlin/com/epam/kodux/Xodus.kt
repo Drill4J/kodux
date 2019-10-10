@@ -54,7 +54,7 @@ class StoreClient(val store: PersistentEntityStoreImpl, val unsafeMode: Boolean 
         }
     }
 
-    inline fun <reified T : Any> findBy(crossinline expression: Expression<T>.() -> Unit) =
+    inline fun <reified T : Any> findBy( noinline expression: Expression<T>.() -> Unit) =
             runBlocking(Dispatchers.IO) { computeWithExpression(expression, Expression()) }
 
 
@@ -68,7 +68,7 @@ class StoreClient(val store: PersistentEntityStoreImpl, val unsafeMode: Boolean 
         }
     }
 
-    inline fun <reified T : Any> deleteBy(crossinline expression: Expression<T>.() -> Unit) =
+    inline fun <reified T : Any> deleteBy(noinline expression: Expression<T>.() -> Unit) =
             runBlocking(Dispatchers.IO) {
                 computeInTransaction { txn ->
                     val expr = Expression<T>()
@@ -95,7 +95,7 @@ class StoreClient(val store: PersistentEntityStoreImpl, val unsafeMode: Boolean 
     }
 
     inline fun <reified T : Any> computeWithExpression(
-            crossinline expression: Expression<T>.() -> Unit, expr: Expression<T>
+            noinline expression: Expression<T>.() -> Unit, expr: Expression<T>
     ): List<T> = this.computeInTransaction { txn ->
         expression(expr)
         val entityIterable = expr.process(txn, T::class)
