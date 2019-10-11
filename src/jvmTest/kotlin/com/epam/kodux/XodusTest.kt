@@ -4,14 +4,10 @@ package com.epam.kodux
 
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.Serializable
-import org.junit.Ignore
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
-import kotlin.test.AfterTest
-import kotlin.test.BeforeTest
-import kotlin.test.assertEquals
-import kotlin.test.assertTrue
+import kotlin.test.*
 
 enum class EN {
     B, C
@@ -27,7 +23,7 @@ data class ComplexObject(
 )
 
 @Serializable
-data class SubObject(val string: String, val int: Int, val lst: Last)
+data class SubObject(val sub_string: String, val sub_int: Int, val sub_last: Last)
 
 
 @Serializable
@@ -52,24 +48,6 @@ data class ObjectWithReferenceElementsMap(val st: Map<TempObject, TempObject>, @
 @Serializable
 data class ObjectWithReferenceElementsMapMixed(val st: Map<String, TempObject>, @Id val id: Int)
 
-@Serializable
-data class FinishedSession(val st: String)
-
-
-@Serializable
-data class FinishedScope(
-        @Id
-        val id: String,
-        val buildVersion: String,
-        val name: String,
-        val probes: Map<String, List<FinishedSession>>,
-        var enabled: Boolean = true
-) : Sequence<FinishedSession> {
-    override fun iterator() = probes.values.flatten().iterator()
-    override fun toString() = "fin-scope($id, $name)"
-}
-
-
 class XodusTest {
     private val agentId = "myAgent"
     @get:Rule
@@ -93,10 +71,15 @@ class XodusTest {
 
     @Test
     fun `should store and retrieve a complex object`() = runBlocking {
-        agentStore.store(FinishedScope("", "", "", mutableMapOf("x" to mutableListOf(FinishedSession("xa"))), true))
-        val all = agentStore.getAll<FinishedScope>()
-        val actual = all.isNotEmpty()
-        assertTrue(actual)
+        agentStore.store(complexObject)
+        val all = agentStore.getAll<ComplexObject>()
+        val cm = all.first()
+        assertTrue(all.isNotEmpty())
+        assertEquals(cm.id, "str")
+        assertEquals(cm.ch, 'x')
+        assertEquals(cm.blink, blink)
+        assertEquals(cm.en, EN.C)
+        assertNull(cm.nullString)
     }
 
     @Test
@@ -137,14 +120,6 @@ class XodusTest {
         agentStore.store(complexObject.copy(id = "2"))
         val all = agentStore.getAll<ComplexObject>()
         assertEquals(2, all.size)
-    }
-
-    @Ignore
-    @Test(expected = Exception::class)
-    fun `should thrown an error if object is already exists`() = runBlocking {
-        agentStore.store(complexObject.copy(id = "1"))
-        agentStore.store(complexObject.copy(id = "1"))
-        Unit
     }
 
     @Test(expected = Exception::class)
@@ -192,5 +167,19 @@ class XodusTest {
         assertTrue(all.first().st.isNotEmpty())
     }
 
+
+    @Serializable
+    data class ObjectWithList(@Id val id: String, val primitiveList: List<Boolean>)
+
+    @Test
+    fun `should restore list related object with right order`() = runBlocking {
+        val primitiveList = listOf(true, false, false, true)
+        agentStore.store(ObjectWithList("id", primitiveList))
+        val actual = agentStore.findById<ObjectWithList>("id")
+        assertNotNull(actual)
+        actual.primitiveList.forEachIndexed { index, pred ->
+            assertEquals(primitiveList[index], pred)
+        }
+    }
 
 }

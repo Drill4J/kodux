@@ -69,15 +69,20 @@ class XodusEncoder(private val txn: StoreTransaction, private val ent: Entity) :
                     is HashSetSerializer<*>,
                     is LinkedHashSetSerializer<*> -> {
                         val filterNotNull = value.filterNotNull()
-                        filterNotNull.forEach {
-                            if (deserializer is GeneratedSerializer) {
+
+                        if (deserializer is GeneratedSerializer) {
+                            filterNotNull.forEach {
                                 val obj = txn.newEntity(it::class.simpleName.toString())
                                 XodusEncoder(txn, obj).encode(deserializer, it)
                                 ent.addLink(tag, obj)
-                            } else {
-                                ent.setProperty(tag, ComparableSet(filterNotNull as Collection<Comparable<Any>>))
                             }
-                            Unit
+                        } else {
+                            val obj = txn.newEntity(ent::class.simpleName.toString() + "list")
+                            obj.setProperty("size", filterNotNull.size)
+                            filterNotNull.forEachIndexed { i, it ->
+                                obj.setProperty(i.toString(), it as Comparable<*>)
+                            }
+                            ent.setLink(tag, obj)
                         }
                     }
                     is ReferenceArraySerializer<*, *> -> {
@@ -131,7 +136,7 @@ class XodusEncoder(private val txn: StoreTransaction, private val ent: Entity) :
 
     private fun encodeElement(desc: SerialDescriptor, index: Int) = pushTag(desc.getTag(index))
 
-    override fun encodeNotNullMark() = TODO("not implemented yet")
+    override fun encodeNotNullMark() = Unit
     override fun encodeNull() = encodeTaggedNull(popTag())
 
     override fun encodeUnit() = TODO("not implemented yet")
@@ -209,7 +214,14 @@ class XodusEncoder(private val txn: StoreTransaction, private val ent: Entity) :
             value: T?
     ) {
         encodeElement(desc, index)
-        encodeNullableSerializableValue(serializer, value)
+        if (serializer is GeneratedSerializer)
+            encodeTaggedObject(
+                    desc.getTag(index),
+                    value as Any,
+                    desc.getElementAnnotations(index).firstOrNull() is Id,
+                    serializer as SerializationStrategy<Any>)
+        else
+            encodeNullableSerializableValue(serializer, value)
     }
 
     private val tagStack = arrayListOf<String>()

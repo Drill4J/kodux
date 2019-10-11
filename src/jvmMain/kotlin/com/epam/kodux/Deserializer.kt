@@ -70,9 +70,17 @@ class XodusDecoder(private val txn: StoreTransaction, private val ent: Entity) :
             is EnumSerializer -> this.decode(des)
             is ListLikeSerializer<*, *, *> -> {
                 val deserializer = des.typeParams.first()
-                val objects = if (deserializer is GeneratedSerializer<*>)
-                    ent.getLinks(tag).map { XodusDecoder(txn, it).decode(deserializer) }.asIterable()
-                else ent.getProperty(tag) as Iterable<Any?>
+                val objects =
+                        if (deserializer is GeneratedSerializer<*>)
+                            ent.getLinks(tag).map { XodusDecoder(txn, it).decode(deserializer) }.asIterable()
+                        else {
+                            val link = ent.getLink(tag)!!
+                            val size = link.getProperty("size") as Int
+                            val map = (0 until size).map {
+                                link.getProperty(it.toString()) as Comparable<*>
+                            }
+                            map
+                        }
                 parseListBasedObject(des, objects)
             }
             is MapLikeSerializer<*, *, *, *> -> {
@@ -173,7 +181,13 @@ class XodusDecoder(private val txn: StoreTransaction, private val ent: Entity) :
             index: Int,
             deserializer: DeserializationStrategy<T?>
     ): T? =
-            tagBlock(desc.getTag(index)) { decodeNullableSerializableValue(deserializer) }
+            tagBlock(desc.getTag(index)) {
+                if (deserializer is GeneratedSerializer)
+                    decodeTaggedObject(desc.getTag(index), deserializer)
+                else
+                    decodeNullableSerializableValue(deserializer)
+
+            }
 
     override fun <T> updateSerializableElement(
             desc: SerialDescriptor,
