@@ -83,6 +83,15 @@ class XodusTest {
     }
 
     @Test
+    fun `should find object with complex expressions`() = runBlocking {
+        agentStore.store(complexObject)
+        agentStore.store(complexObject.copy(id = "123", ch = 'w'))
+
+        val all = agentStore.findBy<ComplexObject> { (ComplexObject::en eq EN.C) and (ComplexObject::id eq "123") and (ComplexObject::id eq "str") }
+        assertTrue(all.isNotEmpty())
+    }
+
+    @Test
     fun `should remove entities of a complex object by ID recursively`() = runBlocking {
         agentStore.store(complexObject)
         agentStore.deleteById<ComplexObject>("str")
@@ -180,6 +189,17 @@ class XodusTest {
         actual.primitiveList.forEachIndexed { index, pred ->
             assertEquals(primitiveList[index], pred)
         }
+    }
+
+    @Test
+    fun `should be transactional`() = runBlocking {
+        try {
+            agentStore.executeInAsyncTransaction {
+                store(complexObject)
+                fail("test")
+            }
+        } catch (ignored: Throwable) { }
+        assertTrue(agentStore.getAll<ComplexObject>().isEmpty())
     }
 
 }
