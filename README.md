@@ -3,7 +3,7 @@
 <img src="./.github/static/kodux.png" alt="Logo" width="128" align="right">
 
 Kodux is kotlin [serialization-based](https://github.com/Kotlin/kotlinx.serialization) ORM for [Xodus](https://github.com/JetBrains/xodus/wikiXodus) database. 
-Where kotlin data classes which marked with [@Serializable](https://github.com/Kotlin/kotlinx.serialization/blob/e554a280c57be620f8b41ef05f03d90d74a64b4a/runtime/commonMain/src/kotlinx/serialization/Annotations.kt#L15), can easily store or retrieve from Xodus DB without describing schemas.
+Where kotlin data classes which marked with [@Serializable](https://github.com/Kotlin/kotlinx.serialization/blob/e554a280c57be620f8b41ef05f03d90d74a64b4a/runtime/commonMain/src/kotlinx/serialization/Annotations.kt#L15), can easily be stored or retrieved from Xodus DB without describing schemas.
 
 Kodux allows you to:
 
