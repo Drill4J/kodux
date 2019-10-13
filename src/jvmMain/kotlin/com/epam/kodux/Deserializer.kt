@@ -1,5 +1,3 @@
-@file:Suppress("UNCHECKED_CAST")
-
 package com.epam.kodux
 
 import jetbrains.exodus.entitystore.*
@@ -81,15 +79,18 @@ class XodusDecoder(private val txn: StoreTransaction, private val ent: Entity) :
                             }
                             map
                         }
-                parseListBasedObject(des, objects)
+                val list = parseListBasedObject(des, objects)
+                unchecked(list)
             }
             is MapLikeSerializer<*, *, *, *> -> {
                 val link = checkNotNull(ent.getLink(tag)) { "nullable collections are not supported yet" }
                 val size = link.getProperty(SIZE_PROPERTY_NAME) as Int
                 val associateWith = (0 until size).associate {
-                    parseElement(des.keySerializer, link, "k$it") to parseElement(des.valueSerializer, link, "v$it")
+                    val k = parseElement(des.keySerializer, link, "k$it")
+                    val v = parseElement(des.valueSerializer, link, "v$it")
+                    k to v
                 }
-                associateWith as T
+                unchecked(associateWith)
             }
             else -> {
                 XodusDecoder(txn, checkNotNull(ent.getLink(tag)) { "should be not null" }).decode(des)
@@ -99,16 +100,15 @@ class XodusDecoder(private val txn: StoreTransaction, private val ent: Entity) :
 
     private fun parseElement(targetSerializer: KSerializer<out Any?>, link: Entity, propertyName: String) =
             if (targetSerializer !is GeneratedSerializer<*>) {
-                link.getProperty(propertyName) ?: restoreObject(targetSerializer, link, propertyName)
+                link.getProperty(propertyName)
+                        ?: restoreObject(targetSerializer, link, propertyName)
+            } else XodusDecoder(txn, link.getLink(propertyName)!!).decode(targetSerializer)
 
-            } else
-                XodusDecoder(txn, link.getLink(propertyName)!!).decode(targetSerializer)
-
-    private fun <T> parseListBasedObject(des: ListLikeSerializer<*, *, *>, objects: Iterable<Any?>): T {
+    private fun parseListBasedObject(des: ListLikeSerializer<*, *, *>, objects: Iterable<Any?>): Any {
         return when (des) {
-            is ArrayListSerializer<*> -> objects.toMutableList() as T
-            is HashSetSerializer<*> -> objects.toMutableSet() as T
-            is LinkedHashSetSerializer<*> -> objects.toMutableSet() as T
+            is ArrayListSerializer<*> -> objects.toMutableList()
+            is HashSetSerializer<*> -> objects.toMutableSet()
+            is LinkedHashSetSerializer<*> -> objects.toMutableSet()
             is ReferenceArraySerializer<*, *> -> TODO("not implemented yet")
             is PrimitiveArraySerializer<*, *, *> -> TODO("not implemented yet")
         }
