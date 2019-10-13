@@ -1,8 +1,5 @@
-@file:Suppress("UNCHECKED_CAST")
-
 package com.epam.kodux
 
-import jetbrains.exodus.bindings.*
 import jetbrains.exodus.entitystore.*
 import kotlinx.serialization.*
 import kotlinx.serialization.internal.*
@@ -62,7 +59,7 @@ class XodusEncoder(private val txn: StoreTransaction, private val ent: Entity) :
     private fun storeObject(des: SerializationStrategy<Any>, value: Any, ent: Entity, tag: String) {
         when (des) {
             is ListLikeSerializer<*, *, *> -> {
-                val deserializer = des.typeParams.first() as KSerializer<Any>
+                val deserializer: KSerializer<Any> = unchecked(des.typeParams.first())
                 check(value is Collection<*>)
                 when (des) {
                     is ArrayListSerializer<*>,
@@ -124,11 +121,11 @@ class XodusEncoder(private val txn: StoreTransaction, private val ent: Entity) :
             if ((property is Comparable<*>))
                 obj.setProperty(keyName, property)
             else {
-                storeObject(targetSerializer as KSerializer<Any>, property!!, obj, keyName)
+                storeObject(unchecked(targetSerializer), property!!, obj, keyName)
             }
         } else {
             val mapKey = txn.newEntity(tag)
-            XodusEncoder(txn, mapKey).encode(targetSerializer as GeneratedSerializer<Any>, property!!)
+            XodusEncoder(txn, mapKey).encode(unchecked(targetSerializer), property!!)
             obj.setLink(keyName, mapKey)
         }
     }
@@ -203,7 +200,7 @@ class XodusEncoder(private val txn: StoreTransaction, private val ent: Entity) :
                 desc.getTag(index),
                 value as Any,
                 desc.getElementAnnotations(index).firstOrNull() is Id,
-                serializer as SerializationStrategy<Any>
+                unchecked(serializer)
         )
     }
 
@@ -219,7 +216,7 @@ class XodusEncoder(private val txn: StoreTransaction, private val ent: Entity) :
                     desc.getTag(index),
                     value as Any,
                     desc.getElementAnnotations(index).firstOrNull() is Id,
-                    serializer as SerializationStrategy<Any>)
+                    unchecked(serializer))
         else
             encodeNullableSerializableValue(serializer, value)
     }

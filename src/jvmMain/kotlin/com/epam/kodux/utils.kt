@@ -14,3 +14,6 @@ inline fun <reified T : Any> idPair(any: T): Pair<String?, Any?> {
 fun idName(desc: SerialDescriptor) =
         (0 until desc.elementsCount).filter { inx -> desc.getElementAnnotations(inx).any { it is Id } }
                 .map { idIndex -> desc.getElementName(idIndex) }.firstOrNull()
+
+@Suppress("UNCHECKED_CAST")
+fun <T> unchecked(any: Any) = any as T
