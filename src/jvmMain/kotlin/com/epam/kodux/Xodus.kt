@@ -36,9 +36,6 @@ class StoreClient(val store: PersistentEntityStoreImpl, val unsafeMode: Boolean 
     suspend inline fun <reified T : Any> store(any: T) =
             withContext(Dispatchers.IO) { executeInTransaction { txn -> txn.store(any) };any }
 
-    suspend inline fun <reified T : Any> update(any: T) =
-            withContext(Dispatchers.IO) { executeInTransaction { txn: StoreTransaction -> txn.update(any) } }
-
     suspend inline fun <reified T : Any> getAll(): Collection<T> =
             withContext(Dispatchers.IO) { computeInReadonlyTransaction { txn -> txn.getAll<T>() } }
 

@@ -2,11 +2,11 @@
 
 package com.epam.kodux
 
-import kotlinx.coroutines.runBlocking
-import kotlinx.serialization.Serializable
-import org.junit.Rule
+import kotlinx.coroutines.*
+import kotlinx.serialization.*
+import org.junit.*
 import org.junit.Test
-import org.junit.rules.TemporaryFolder
+import org.junit.rules.*
 import kotlin.test.*
 
 enum class EN {
@@ -21,6 +21,16 @@ data class ComplexObject(
         val en: EN = EN.B,
         val nullString: String?
 )
+
+@Serializable
+data class ObjectWithSetField(
+    @Id
+    val id: String,
+    val set: MutableSet<SetPayload>
+)
+
+@Serializable
+data class SetPayload(val id: String, val name: String)
 
 @Serializable
 data class SubObject(val sub_string: String, val sub_int: Int, val sub_last: Last)
@@ -119,7 +129,7 @@ class XodusTest {
     @Test
     fun `should update object`() = runBlocking {
         agentStore.store(complexObject)
-        agentStore.update(complexObject.copy(ch = 'y'))
+        agentStore.store(complexObject.copy(ch = 'y'))
         assertEquals(agentStore.getAll<ComplexObject>().first().ch, 'y')
     }
 
@@ -129,11 +139,6 @@ class XodusTest {
         agentStore.store(complexObject.copy(id = "2"))
         val all = agentStore.getAll<ComplexObject>()
         assertEquals(2, all.size)
-    }
-
-    @Test(expected = Exception::class)
-    fun `should throw an error if update a nonexistent object`() = runBlocking {
-        agentStore.update(complexObject.copy(id = "1"))
     }
 
     @Test
@@ -200,6 +205,25 @@ class XodusTest {
             }
         } catch (ignored: Throwable) { }
         assertTrue(agentStore.getAll<ComplexObject>().isEmpty())
+    }
+
+    @Test
+    fun `should not store old entities when set field gets updated`() = runBlocking {
+        val set = mutableSetOf(
+            SetPayload("1", "name1")
+        )
+        val obj = ObjectWithSetField("myId", set)
+        agentStore.store(obj)
+        assertEquals(1, agentStore.findById<ObjectWithSetField>("myId")?.set?.count())
+        assertEquals("name1", agentStore.findById<ObjectWithSetField>("myId")?.set?.firstOrNull()?.name)
+        val storedObj = agentStore.findById<ObjectWithSetField>("myId")!!
+        storedObj.set.removeAll { it.id == "1" }
+        storedObj.set.add(SetPayload("1", "name2"))
+        agentStore.store(storedObj)
+        assertEquals(1, agentStore.findById<ObjectWithSetField>("myId")?.set?.count())
+        assertEquals("name2", agentStore.findById<ObjectWithSetField>("myId")?.set?.firstOrNull()?.name)
+        val payloads = agentStore.getAll<SetPayload>()
+        assertEquals(1, payloads.count())
     }
 
 }
