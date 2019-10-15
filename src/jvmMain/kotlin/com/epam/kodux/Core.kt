@@ -10,17 +10,10 @@ import kotlinx.serialization.serializer
 typealias KoduxTransaction = StoreTransaction
 
 inline fun <reified T : Any> KoduxTransaction.store(any: T) {
-    if (this.findEntity(any) != null) {
-        this.update(any)
-    } else {
-        val obj = this.newEntity(any::class.simpleName.toString())
-        XodusEncoder(this, obj).encode(T::class.serializer(), any)
+    this.findEntity(any)?.apply {
+        deleteEntityRecursively(this)
     }
-}
-
-inline fun <reified T : Any> KoduxTransaction.update(any: T) {
-    val obj = this.findEntity(any)
-    checkNotNull(obj) { "Can't find the entity for - '$any'" }
+    val obj = this.newEntity(any::class.simpleName.toString())
     XodusEncoder(this, obj).encode(T::class.serializer(), any)
 }
 
