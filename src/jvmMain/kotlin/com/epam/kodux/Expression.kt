@@ -10,6 +10,7 @@ class Expression<Q : Any> {
     val subExpr: MutableSet<EntityIterable.() -> List<Entity>> = mutableSetOf()
 
     fun process(transaction: StoreTransaction, cklas: KClass<Q>): List<Entity> {
+        coreLogger.info("Processing expression: $this")
         if (exprCallback == null) return emptyList<Entity>()
 
         val mainSelection: EntityIterable = exprCallback!!(transaction, cklas)
@@ -22,12 +23,15 @@ class Expression<Q : Any> {
 
     infix fun <Q, R : Comparable<*>> KProperty1<Q, R>.startsWith(r: String) {
         exprCallback = {
-            findStartingWith(it.simpleName.toString(), this@startsWith.name, r)
+            val name = it.simpleName.toString()
+            coreLogger.debug("Searching for prefix '$r' in '$name'")
+            findStartingWith(name, this@startsWith.name, r)
         }
     }
 
     @Suppress("IMPLICIT_CAST_TO_ANY")
     infix fun <R : Comparable<*>> KProperty1<Q, R>.eq(r: R): Expression<Q> {
+        coreLogger.debug("Checking for equality: $this to $r")
         val toString = when (r) {
             is Enum<*> -> r.ordinal
             else -> r.toString()

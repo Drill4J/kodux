@@ -9,6 +9,7 @@ import org.junit.Test
 import org.junit.rules.*
 import kotlin.test.*
 
+
 enum class EN {
     B, C
 }
@@ -226,4 +227,34 @@ class XodusTest {
         assertEquals(1, payloads.count())
     }
 
+    //TODO: fix the test when kodux is fixed to store entities with double ID
+    @Test
+    fun `should store and retrieve id-annotated sub-entities correctly`()= runBlocking {
+        val normie = Normie("normal", "asd")
+        agentStore.store(normie)
+        assertEquals(1, agentStore.getAll<Normie>().count())
+        val anotherNormie = Normie("normal", "dsa")
+        val double = DoubleId("double", anotherNormie)
+        agentStore.store(double)
+        assertEquals(1, agentStore.getAll<DoubleId>().count())
+        assertEquals(2, agentStore.getAll<Normie>().count())
+        val retrievedDouble = agentStore.findById<DoubleId>("double")!!
+        val retrievedNormie = retrievedDouble.sub
+        assertEquals("normal", retrievedNormie.id)
+        assertEquals("dsa", retrievedNormie.value)
+    }
+
 }
+@Serializable
+data class DoubleId(
+    @Id
+    val id: String,
+    val sub: Normie
+)
+
+@Serializable
+data class Normie(
+    @Id
+    val id: String,
+    val value: String
+)

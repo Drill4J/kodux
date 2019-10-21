@@ -4,7 +4,9 @@ import jetbrains.exodus.entitystore.*
 import kotlinx.serialization.*
 import kotlinx.serialization.internal.*
 import kotlinx.serialization.modules.*
+import org.slf4j.*
 
+val encoderLogger: Logger = LoggerFactory.getLogger("Encoder")
 
 class XodusEncoder(private val txn: StoreTransaction, private val ent: Entity) : Encoder, CompositeEncoder {
     private fun SerialDescriptor.getTag(index: Int) = this.getElementName(index)
@@ -13,67 +15,82 @@ class XodusEncoder(private val txn: StoreTransaction, private val ent: Entity) :
         get() = EmptyModule
 
     private fun encodeTaggedBoolean(tag: String, value: Boolean) {
+        encoderLogger.debug("Encoding tagged Boolean with tag: $tag (value: $value)")
         ent.setProperty(tag, value)
     }
 
     private fun encodeTaggedByte(tag: String, value: Byte) {
+        encoderLogger.debug("Encoding tagged Byte with tag: $tag (value: $value)")
         ent.setProperty(tag, value)
     }
 
     private fun encodeTaggedChar(tag: String, value: Char) {
         //doesn't support character
+        encoderLogger.debug("Encoding tagged Char with tag: $tag (value: $value)")
         ent.setProperty(tag, value.toString())
     }
 
     private fun encodeTaggedDouble(tag: String, value: Double) {
+        encoderLogger.debug("Encoding tagged Double with tag: $tag (value: $value)")
         ent.setProperty(tag, value)
     }
 
     private fun encodeTaggedFloat(tag: String, value: Float) {
+        encoderLogger.debug("Encoding tagged Float with tag: $tag (value: $value)")
         ent.setProperty(tag, value)
     }
 
     private fun encodeTaggedInt(tag: String, value: Int) {
+        encoderLogger.debug("Encoding tagged Int with tag: $tag (value: $value)")
         ent.setProperty(tag, value)
     }
 
     private fun encodeTaggedLong(tag: String, value: Long) {
+        encoderLogger.debug("Encoding tagged Long with tag: $tag (value: $value)")
         ent.setProperty(tag, value)
     }
 
     private fun encodeTaggedNull(@Suppress("UNUSED_PARAMETER") tag: String) {
+        encoderLogger.error("Tried to encode null with tag: $tag")
     }
 
     private fun encodeTaggedShort(tag: String, value: Short) {
+        encoderLogger.debug("Encoding tagged Short with tag: $tag (value: $value)")
         ent.setProperty(tag, value)
     }
 
     private fun encodeTaggedString(tag: String, value: String) {
+        encoderLogger.debug("Encoding tagged String with tag: $tag (value: $value)")
         ent.setProperty(tag, value)
     }
 
     private fun encodeTaggedObject(tag: String, value: Any, @Suppress("UNUSED_PARAMETER") isId: Boolean, des: SerializationStrategy<Any>) {
+        encoderLogger.debug("Encoding tagged Object with tag: $tag (value: $value)")
         storeObject(des, value, ent, tag)
     }
 
     private fun storeObject(des: SerializationStrategy<Any>, value: Any, ent: Entity, tag: String) {
+        encoderLogger.info("Storing an object; tag: $tag, value: $value, entity: $ent")
         when (des) {
             is ListLikeSerializer<*, *, *> -> {
                 val deserializer: KSerializer<Any> = unchecked(des.typeParams.first())
+                encoderLogger.debug("Checking value $value is a Collection")
                 check(value is Collection<*>)
                 when (des) {
                     is ArrayListSerializer<*>,
                     is HashSetSerializer<*>,
                     is LinkedHashSetSerializer<*> -> {
+                        encoderLogger.debug("Value $value is being filtered (filterNotNull)")
                         val filterNotNull = value.filterNotNull()
-
                         if (deserializer is GeneratedSerializer) {
                             filterNotNull.forEach {
+                                encoderLogger.debug("Encoding and linking: $it")
                                 val obj = txn.newEntity(it::class.simpleName.toString())
                                 XodusEncoder(txn, obj).encode(deserializer, it)
                                 ent.addLink(tag, obj)
                             }
                         } else {
+                            encoderLogger.debug("Linking: $ent")
                             val obj = txn.newEntity(ent::class.simpleName.toString() + "list")
                             obj.setProperty("size", filterNotNull.size)
                             filterNotNull.forEachIndexed { i, it ->
@@ -88,10 +105,12 @@ class XodusEncoder(private val txn: StoreTransaction, private val ent: Entity) :
                 }
             }
             is EnumSerializer<*> -> {
+                encoderLogger.debug("Checking value $value is a Enum")
                 check(value is Enum<*>)
                 ent.setProperty(tag, value.ordinal)
             }
             is MapLikeSerializer<*, *, *, *> -> {
+                encoderLogger.debug("Casting value $value to Map")
                 val map = value as Map<*, *>
                 val obj = txn.newEntity("${ent.type}:$tag:map")
                 map.entries.mapIndexed { index, (key, vl) ->
@@ -117,6 +136,7 @@ class XodusEncoder(private val txn: StoreTransaction, private val ent: Entity) :
             keyName: String,
             tag: String
     ) {
+        encoderLogger.info("Parsing property $property for entity $obj")
         if (targetSerializer !is GeneratedSerializer<*>) {
             if ((property is Comparable<*>))
                 obj.setProperty(keyName, property)
@@ -195,6 +215,7 @@ class XodusEncoder(private val txn: StoreTransaction, private val ent: Entity) :
             serializer: SerializationStrategy<T>,
             value: T
     ) {
+        encoderLogger.info("Encoding an element: $value")
         encodeElement(desc, index)
         encodeTaggedObject(
                 desc.getTag(index),
@@ -210,6 +231,7 @@ class XodusEncoder(private val txn: StoreTransaction, private val ent: Entity) :
             serializer: SerializationStrategy<T>,
             value: T?
     ) {
+        encoderLogger.info("Encoding a nullable element: $value")
         encodeElement(desc, index)
         if (serializer is GeneratedSerializer)
             encodeTaggedObject(

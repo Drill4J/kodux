@@ -8,6 +8,7 @@ const val SIZE_PROPERTY_NAME = "size"
 
 inline fun <reified T : Any> idPair(any: T): Pair<String?, Any?> {
     val idName = idName(T::class.serializer().descriptor)
+    coreLogger.info("Generated idName: $idName for entity $any")
     return idName to (T::class.memberProperties.find { it.name == idName })?.getter?.invoke(any)
 }
 

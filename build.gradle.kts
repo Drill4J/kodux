@@ -30,6 +30,9 @@ kotlin {
                 implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.3.2")
                 implementation("org.jetbrains.xodus:xodus-entity-store:1.3.91")
                 implementation("org.jetbrains.kotlinx:kotlinx-serialization-runtime:0.13.0")
+                implementation("org.slf4j:slf4j-api:1.7.25")
+                implementation("ch.qos.logback:logback-classic:1.2.3")
+                implementation("ch.qos.logback:logback-core:1.2.3")
             }
         }
         named("jvmTest") {

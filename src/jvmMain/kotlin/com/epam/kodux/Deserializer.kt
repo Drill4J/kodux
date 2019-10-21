@@ -4,7 +4,9 @@ import jetbrains.exodus.entitystore.*
 import kotlinx.serialization.*
 import kotlinx.serialization.internal.*
 import kotlinx.serialization.modules.*
+import org.slf4j.*
 
+val decoderLogger: Logger = LoggerFactory.getLogger("Decoder")
 
 class XodusDecoder(private val txn: StoreTransaction, private val ent: Entity) : Decoder, CompositeDecoder {
     override val context: SerialModule
@@ -12,58 +14,72 @@ class XodusDecoder(private val txn: StoreTransaction, private val ent: Entity) :
 
     override val updateMode: UpdateMode = UpdateMode.UPDATE
     private fun SerialDescriptor.getTag(index: Int): String {
+        decoderLogger.debug("Getting tag by index: $index (entity: $ent)")
         return this.getElementName(index)
     }
 
     private fun decodeTaggedBoolean(tag: String): Boolean {
+        decoderLogger.debug("Decoding a Boolean by tag: $tag (entity: $ent)")
         return ent.getProperty(tag) as Boolean
     }
 
     private fun decodeTaggedByte(tag: String): Byte {
+        decoderLogger.debug("Decoding a Byte by tag: $tag (entity: $ent)")
         return ent.getProperty(tag) as Byte
     }
 
     private fun decodeTaggedChar(tag: String): Char {
+        decoderLogger.debug("Decoding a Char by tag: $tag (entity: $ent)")
         return ent.getProperty(tag).toString()[0]
     }
 
     private fun decodeTaggedDouble(tag: String): Double {
+        decoderLogger.debug("Decoding a Double by tag: $tag (entity: $ent)")
         return ent.getProperty(tag) as Double
     }
 
     private fun decodeTaggedEnum(tag: String): Int {
+        decoderLogger.debug("Decoding an Enum by tag: $tag (entity: $ent)")
         return ent.getProperty(tag) as Int
     }
 
     private fun decodeTaggedFloat(tag: String): Float {
+        decoderLogger.debug("Decoding a Float by tag: $tag (entity: $ent)")
         return ent.getProperty(tag) as Float
     }
 
     private fun decodeTaggedInt(tag: String): Int {
+        decoderLogger.debug("Decoding an Int by tag: $tag (entity: $ent)")
         return ent.getProperty(tag) as Int
     }
 
     private fun decodeTaggedLong(tag: String): Long {
+        decoderLogger.debug("Decoding a Long by tag: $tag (entity: $ent)")
         return ent.getProperty(tag) as Long
     }
 
     private fun decodeTaggedNotNullMark(@Suppress("UNUSED_PARAMETER") tag: String): Boolean {
+        decoderLogger.debug("Decoding a not null mark by tag: $tag (entity: $ent)")
         return ent.getProperty(tag) != null || ent.getLink(tag) != null
     }
 
     private fun decodeTaggedShort(tag: String): Short {
+        decoderLogger.debug("Decoding a Short by tag: $tag (entity: $ent)")
         return ent.getProperty(tag) as Short
     }
 
     private fun decodeTaggedString(tag: String): String {
+        decoderLogger.debug("Decoding a String by tag: $tag (entity: $ent)")
         return ent.getProperty(tag) as String
     }
 
     private fun <T> decodeTaggedObject(tag: String, des: DeserializationStrategy<T>): T {
+        decoderLogger.debug("Decoding an Object by tag: $tag (entity: $ent)")
         return restoreObject(des, ent, tag)
     }
 
     private fun <T> restoreObject(des: DeserializationStrategy<T>, ent: Entity, tag: String): T {
+        decoderLogger.debug("Restoring an object by tag: $tag (entity: $ent)")
         return when (des) {
             is EnumSerializer -> this.decode(des)
             is ListLikeSerializer<*, *, *> -> {
@@ -98,11 +114,13 @@ class XodusDecoder(private val txn: StoreTransaction, private val ent: Entity) :
         }
     }
 
-    private fun parseElement(targetSerializer: KSerializer<out Any?>, link: Entity, propertyName: String) =
-            if (targetSerializer !is GeneratedSerializer<*>) {
-                link.getProperty(propertyName)
-                        ?: restoreObject(targetSerializer, link, propertyName)
-            } else XodusDecoder(txn, link.getLink(propertyName)!!).decode(targetSerializer)
+    private fun parseElement(targetSerializer: KSerializer<out Any?>, link: Entity, propertyName: String) = run {
+        decoderLogger.debug("Parsing a ${link.type}; contents: $link")
+        if (targetSerializer !is GeneratedSerializer<*>) {
+            link.getProperty(propertyName)
+                ?: restoreObject(targetSerializer, link, propertyName)
+        } else XodusDecoder(txn, link.getLink(propertyName)!!).decode(targetSerializer)
+    }
 
     private fun parseListBasedObject(des: ListLikeSerializer<*, *, *>, objects: Iterable<Any?>): Any {
         return when (des) {
