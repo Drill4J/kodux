@@ -65,6 +65,10 @@ class XodusDecoder(private val txn: StoreTransaction, private val ent: Entity) :
 
     private fun <T> restoreObject(des: DeserializationStrategy<T>, ent: Entity, tag: String): T {
         return when (des) {
+            is ByteArraySerializer -> {
+                @Suppress("UNCHECKED_CAST")
+                ent.getBlob(tag)?.readBytes() as T
+            }
             is EnumSerializer -> this.decode(des)
             is ListLikeSerializer<*, *, *> -> {
                 val deserializer = des.typeParams.first()

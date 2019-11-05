@@ -56,8 +56,12 @@ class XodusEncoder(private val txn: StoreTransaction, private val ent: Entity) :
         storeObject(des, value, ent, tag)
     }
 
-    private fun storeObject(des: SerializationStrategy<Any>, value: Any, ent: Entity, tag: String) {
+    private fun storeObject(des: SerializationStrategy<*>, value: Any, ent: Entity, tag: String) {
         when (des) {
+            is ByteArraySerializer -> {
+                check(value is ByteArray)
+                ent.setBlob(tag, value.inputStream())
+            }
             is ListLikeSerializer<*, *, *> -> {
                 val deserializer: KSerializer<Any> = unchecked(des.typeParams.first())
                 check(value is Collection<*>)

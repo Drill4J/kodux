@@ -30,6 +30,13 @@ data class ObjectWithSetField(
 )
 
 @Serializable
+data class ObjectWithByteArray(
+    @Id
+    val id: String,
+    val array: ByteArray
+)
+
+@Serializable
 data class SetPayload(val id: String, val name: String)
 
 @Serializable
@@ -224,6 +231,15 @@ class XodusTest {
         assertEquals("name2", agentStore.findById<ObjectWithSetField>("myId")?.set?.firstOrNull()?.name)
         val payloads = agentStore.getAll<SetPayload>()
         assertEquals(1, payloads.count())
+    }
+
+    @Test
+    fun `should preserve and restore objects with byte arrays among fields`() = runBlocking {
+        val testArray = "test".toByteArray()
+        val obj = ObjectWithByteArray("myArray", testArray)
+        agentStore.store(obj)
+        val retrieved = agentStore.findById<ObjectWithByteArray>("myArray")
+        assertTrue(testArray.contentEquals(retrieved?.array ?: byteArrayOf()))
     }
 
 }
