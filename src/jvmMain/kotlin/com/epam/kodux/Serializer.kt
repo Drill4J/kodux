@@ -115,17 +115,17 @@ class XodusEncoder(private val txn: StoreTransaction, private val ent: Entity) :
     }
 
     private fun parseElement(
-            targetSerializer: KSerializer<out Any?>,
-            property: Any?,
-            obj: Entity,
-            keyName: String,
-            tag: String
+        targetSerializer: KSerializer<out Any?>,
+        property: Any?,
+        obj: Entity,
+        keyName: String,
+        tag: String
     ) {
         if (targetSerializer !is GeneratedSerializer<*>) {
-            if ((property is Comparable<*>))
-                obj.setProperty(keyName, property)
-            else {
-                storeObject(unchecked(targetSerializer), property!!, obj, keyName)
+            when (property) {
+                is Enum<*> -> obj.setProperty(keyName, property.ordinal)
+                is Comparable<*> -> obj.setProperty(keyName, property)
+                else -> storeObject(unchecked(targetSerializer), property!!, obj, keyName)
             }
         } else {
             val mapKey = txn.newEntity(tag)

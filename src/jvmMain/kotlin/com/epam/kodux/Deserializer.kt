@@ -103,10 +103,14 @@ class XodusDecoder(private val txn: StoreTransaction, private val ent: Entity) :
     }
 
     private fun parseElement(targetSerializer: KSerializer<out Any?>, link: Entity, propertyName: String) =
-            if (targetSerializer !is GeneratedSerializer<*>) {
+        when (targetSerializer) {
+            is EnumSerializer -> targetSerializer.choices[link.getProperty(propertyName) as Int]
+            !is GeneratedSerializer<*> -> {
                 link.getProperty(propertyName)
-                        ?: restoreObject(targetSerializer, link, propertyName)
-            } else XodusDecoder(txn, link.getLink(propertyName)!!).decode(targetSerializer)
+                    ?: restoreObject(targetSerializer, link, propertyName)
+            }
+            else -> XodusDecoder(txn, link.getLink(propertyName)!!).decode(targetSerializer)
+        }
 
     private fun parseListBasedObject(des: ListLikeSerializer<*, *, *>, objects: Iterable<Any?>): Any {
         return when (des) {
