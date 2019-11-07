@@ -63,10 +63,10 @@ class StoreClient(val store: PersistentEntityStoreImpl, val unsafeMode: Boolean 
 
 }
 
-class StoreManger(private val baseLocation: File = File("./").resolve("agent")) {
+class StoreManager(private val baseLocation: File = File("./").resolve("agent")) {
     val storages = ConcurrentHashMap<String, StoreClient>()
     fun agentStore(agentId: String): StoreClient {
-        return storages.getOrPut(baseLocation.absolutePath, {
+        return storages.getOrPut(baseLocation.resolve(agentId).absolutePath, {
             val store = PersistentEntityStores.newInstance(baseLocation.resolve(agentId))
 
             StoreClient(store)

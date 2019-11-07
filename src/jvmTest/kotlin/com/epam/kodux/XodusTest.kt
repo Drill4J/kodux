@@ -22,7 +22,7 @@ class XodusTest {
 
     @BeforeTest
     fun before() {
-        agentStore = StoreManger(projectDir.newFolder().resolve("agent")).agentStore(agentId)
+        agentStore = StoreManager(projectDir.newFolder().resolve("agent")).agentStore(agentId)
     }
 
     @AfterTest
