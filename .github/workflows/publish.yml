@@ -1,0 +1,21 @@
+name: Build & publish kodux
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  build_and_publish:
+    name: Publish kodux
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v1
+      - name: Check
+        run:
+          gradle -si --no-daemon check
+      - name: Publish
+        run: |
+          gradle -si --no-daemon publish
+        env:
+          BINTRAY_USER: ${{ secrets.BINTRAY_USER }}
+          BINTRAY_API_KEY: ${{ secrets.BINTRAY_API_KEY }}
