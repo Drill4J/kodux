@@ -2,14 +2,10 @@
 
 package com.epam.kodux
 
-import jetbrains.exodus.entitystore.PersistentEntityStore
-import jetbrains.exodus.entitystore.PersistentEntityStoreImpl
-import jetbrains.exodus.entitystore.PersistentEntityStores
-import jetbrains.exodus.entitystore.StoreTransaction
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
-import java.io.File
-import java.util.concurrent.ConcurrentHashMap
+import jetbrains.exodus.entitystore.*
+import kotlinx.coroutines.*
+import java.io.*
+import java.util.concurrent.*
 
 
 class StoreClient(val store: PersistentEntityStoreImpl, val unsafeMode: Boolean = false) : PersistentEntityStore by store {
@@ -44,13 +40,14 @@ class StoreClient(val store: PersistentEntityStoreImpl, val unsafeMode: Boolean 
 
 
     suspend inline fun <reified T : Any> findBy(noinline expression: Expression<T>.() -> Unit) =
-            withContext(Dispatchers.IO) { computeInTransaction { txn -> txn.findBy(expression) } }
+        withContext(Dispatchers.IO) { computeInTransaction { txn -> txn.findBy(expression) } }
 
+    suspend inline fun <reified T : Any> deleteAll(): Unit =
+        withContext(Dispatchers.IO) { computeInTransaction { txn -> txn.deleteAll<T>() } }
 
     suspend inline fun <reified T : Any> deleteById(id: Any) = withContext(Dispatchers.IO) {
         computeInTransaction { txn -> txn.deleteById<T>(id) }
     }
-
 
     suspend inline fun <reified T : Any> deleteBy(noinline expression: Expression<T>.() -> Unit) =
             withContext(Dispatchers.IO) {
