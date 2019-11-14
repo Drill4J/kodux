@@ -1,6 +1,6 @@
 package com.epam.kodux
 
-import kotlinx.serialization.Serializable
+import kotlinx.serialization.*
 
 
 enum class EN {
@@ -8,10 +8,16 @@ enum class EN {
 }
 
 @Serializable
+data class StoreMe(
+    @Id
+    val id: String
+)
+
+@Serializable
 data class MapField(
     @Id
     val id: String,
-    val map: Map<EN, TempObject>
+    val map: Map<EN, TempObject> = emptyMap()
 )
 
 @Serializable

@@ -194,4 +194,23 @@ class XodusTest {
         assertEquals(5, retrievedMap[EN.B]?.int)
     }
 
+    @Test
+    fun `should delete all entities for a specified class`() = runBlocking<Unit> {
+        val obj1 = StoreMe("id1")
+        val obj2 = StoreMe("id2")
+        val obj3 = MapField("id3")
+        agentStore.store(obj1)
+        agentStore.store(obj2)
+        agentStore.store(obj3)
+        assertEquals(2, agentStore.getAll<StoreMe>().count())
+        assertNotNull(agentStore.findById<StoreMe>("id1"))
+        assertNotNull(agentStore.findById<StoreMe>("id2"))
+        assertNotNull(agentStore.findById<MapField>("id3"))
+        agentStore.deleteAll<StoreMe>()
+        assertEquals(0, agentStore.getAll<StoreMe>().count())
+        assertNull(agentStore.findById<StoreMe>("id1"))
+        assertNull(agentStore.findById<StoreMe>("id2"))
+        assertNotNull(agentStore.findById<MapField>("id3") != null)
+    }
+
 }

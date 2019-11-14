@@ -1,10 +1,7 @@
 package com.epam.kodux
 
-import jetbrains.exodus.entitystore.Entity
-import jetbrains.exodus.entitystore.StoreTransaction
-import kotlinx.serialization.decode
-import kotlinx.serialization.encode
-import kotlinx.serialization.serializer
+import jetbrains.exodus.entitystore.*
+import kotlinx.serialization.*
 
 
 typealias KoduxTransaction = StoreTransaction
@@ -32,6 +29,10 @@ inline fun <reified T : Any> KoduxTransaction.findById(id: Any): T? {
 
 inline fun <reified T : Any> KoduxTransaction.findBy(noinline expression: Expression<T>.() -> Unit) =
         this.computeWithExpression(expression, Expression())
+
+inline fun <reified T : Any> KoduxTransaction.deleteAll() {
+    this.getAll(T::class.simpleName.toString()).forEach { deleteEntityRecursively(it) }
+}
 
 inline fun <reified T : Any> KoduxTransaction.deleteById(id: Any) {
     val serializer = T::class.serializer()
