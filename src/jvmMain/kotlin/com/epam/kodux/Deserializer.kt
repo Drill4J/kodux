@@ -104,7 +104,7 @@ class XodusDecoder(private val txn: StoreTransaction, private val ent: Entity) :
 
     private fun parseElement(targetSerializer: KSerializer<out Any?>, link: Entity, propertyName: String) =
         when (targetSerializer) {
-            is EnumSerializer -> targetSerializer.choices[link.getProperty(propertyName) as Int]
+            is EnumSerializer -> targetSerializer.values.get(link.getProperty(propertyName) as Int)
             !is GeneratedSerializer<*> -> {
                 link.getProperty(propertyName)
                     ?: restoreObject(targetSerializer, link, propertyName)
@@ -134,10 +134,10 @@ class XodusDecoder(private val txn: StoreTransaction, private val ent: Entity) :
     override fun decodeLong(): Long = decodeTaggedLong(popTag())
     override fun decodeFloat(): Float = decodeTaggedFloat(popTag())
     override fun decodeDouble(): Double = decodeTaggedDouble(popTag())
+    override fun decodeEnum(enumDescription: SerialDescriptor): Int = decodeTaggedEnum(popTag())
+
     override fun decodeChar(): Char = decodeTaggedChar(popTag())
     override fun decodeString(): String = decodeTaggedString(popTag())
-
-    override fun decodeEnum(enumDescription: EnumDescriptor): Int = decodeTaggedEnum(popTag())
 
     override fun beginStructure(desc: SerialDescriptor, vararg typeParams: KSerializer<*>): CompositeDecoder {
         return this

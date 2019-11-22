@@ -151,7 +151,7 @@ class XodusEncoder(private val txn: StoreTransaction, private val ent: Entity) :
     override fun encodeChar(value: Char) = encodeTaggedChar(popTag(), value)
     override fun encodeString(value: String) = encodeTaggedString(popTag(), value)
 
-    override fun encodeEnum(enumDescription: EnumDescriptor, ordinal: Int) = TODO("not implemented yet")
+    override fun encodeEnum(enumDescription: SerialDescriptor, ordinal: Int) = TODO("not implemented yet")
 
     override fun beginStructure(desc: SerialDescriptor, vararg typeParams: KSerializer<*>): CompositeEncoder {
         return this
