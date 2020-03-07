@@ -7,7 +7,7 @@ repositories {
     jcenter()
 }
 
-val kotlinVersion = "1.3.60"
+val kotlinVersion = "1.3.70"
 dependencies {
     implementation(kotlin("gradle-plugin", kotlinVersion))
     implementation(kotlin("stdlib-jdk8", kotlinVersion))
