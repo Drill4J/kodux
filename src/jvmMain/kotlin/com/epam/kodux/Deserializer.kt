@@ -13,13 +13,8 @@ import kotlinx.serialization.modules.EmptyModule
 import kotlinx.serialization.modules.SerialModule
 
 
-class XodusDecoder(
-    private val txn: StoreTransaction,
-    private val ent: Entity,
-    val idName: String? = null
-) : Decoder, CompositeDecoder {
-    override val context: SerialModule
-        get() = EmptyModule
+class XodusDecoder(private val txn: StoreTransaction, private val ent: Entity) : Decoder, CompositeDecoder {
+    override val context: SerialModule = EmptyModule
 
     override val updateMode: UpdateMode = UpdateMode.UPDATE
     private fun SerialDescriptor.getTag(index: Int): String {
@@ -135,20 +130,13 @@ class XodusDecoder(
         return when (des::class) {
             ListSerializer(des.typeParams.first())::class -> objects.toMutableList()
             SetSerializer(des.typeParams.first())::class -> objects.toMutableSet()
-            SetSerializer(des.typeParams.first())::class -> objects.toMutableSet()
             else -> TODO("not implemented yet")
-//            is HashSetSerializer<*> -> objects.toMutableSet()
-//            is LinkedHashSetSerializer<*> -> objects.toMutableSet()
-//            is ReferenceArraySerializer<*, *> -> TODO("not implemented yet")
-//            is PrimitiveArraySerializer<*, *, *> -> TODO("not implemented yet")
         }
     }
 
 
     override fun decodeNotNullMark(): Boolean = decodeTaggedNotNullMark(currentTag)
     override fun decodeNull(): Nothing? = null
-
-    override fun decodeUnit() = TODO("not implemented yet")
     override fun decodeBoolean(): Boolean = decodeTaggedBoolean(popTag())
     override fun decodeByte(): Byte = decodeTaggedByte(popTag())
     override fun decodeShort(): Short = decodeTaggedShort(popTag())
@@ -166,16 +154,6 @@ class XodusDecoder(
     }
 
     override fun decodeSequentially(): Boolean = true
-
-    /**
-     * Assumes that all elements go in order by default.
-     */
-    override fun decodeElementIndex(descriptor: SerialDescriptor): Int = CompositeDecoder.READ_ALL
-
-    override fun decodeUnitElement(descriptor: SerialDescriptor, index: Int) = TODO("not implemented yet")
-    override fun endStructure(descriptor: SerialDescriptor) {
-//        TODO("Not yet implemented")
-    }
 
     override fun decodeBooleanElement(descriptor: SerialDescriptor, index: Int): Boolean =
             decodeTaggedBoolean(descriptor.getTag(index))
@@ -266,4 +244,12 @@ class XodusDecoder(
         flag = true
         return r
     }
+
+    override fun decodeUnit() = TODO("not implemented yet")
+
+    override fun decodeElementIndex(descriptor: SerialDescriptor): Int = TODO("not implemented yet")
+
+    override fun decodeUnitElement(descriptor: SerialDescriptor, index: Int) = TODO("not implemented yet")
+
+    override fun endStructure(descriptor: SerialDescriptor) = Unit
 }

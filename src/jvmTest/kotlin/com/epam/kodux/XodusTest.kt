@@ -187,6 +187,7 @@ class XodusTest {
     @Test
     fun `should be transactional`() = runBlocking {
         try {
+            @Suppress("IMPLICIT_NOTHING_AS_TYPE_PARAMETER")
             agentStore.executeInAsyncTransaction {
                 store(complexObject)
                 fail("test")

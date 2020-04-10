@@ -44,7 +44,7 @@ class Expression<Q : Any>(private val idName: String) {
     }
 
 
-    infix fun Expression<Q>.and(expression: Expression<Q>): Expression<Q> {
+    infix fun Expression<Q>.and(@Suppress("UNUSED_PARAMETER") expression: Expression<Q>): Expression<Q> {
         return this@Expression
     }
 
