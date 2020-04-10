@@ -15,12 +15,16 @@ repositories {
     jcenter()
 }
 
+val coroutinesVersion:String by project
+val serializationVersion:String by project
+val xodusVersion:String by project
+
 dependencies {
     implementation(kotlin("stdlib-jdk8"))
     implementation(kotlin("reflect"))
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.3.4")
-    implementation("org.jetbrains.xodus:xodus-entity-store:1.3.91")
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-runtime:0.20.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:$coroutinesVersion")
+    implementation("org.jetbrains.xodus:xodus-entity-store:$xodusVersion")
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-runtime:$serializationVersion")
     testImplementation(kotlin("test-junit"))
 }
 
