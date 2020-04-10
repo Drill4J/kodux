@@ -1,5 +1,7 @@
 package com.epam.kodux
 
+import com.epam.kodux.decoder.XodusDecoder
+import com.epam.kodux.encoder.XodusEncoder
 import jetbrains.exodus.entitystore.*
 import kotlinx.serialization.*
 

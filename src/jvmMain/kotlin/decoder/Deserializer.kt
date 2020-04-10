@@ -1,5 +1,7 @@
-package com.epam.kodux
+package com.epam.kodux.decoder
 
+import com.epam.kodux.SIZE_PROPERTY_NAME
+import com.epam.kodux.unchecked
 import jetbrains.exodus.entitystore.Entity
 import jetbrains.exodus.entitystore.StoreTransaction
 import kotlinx.serialization.*
