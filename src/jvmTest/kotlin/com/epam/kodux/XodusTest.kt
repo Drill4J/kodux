@@ -30,7 +30,22 @@ class XodusTest {
     }
 
     @Test
-    fun `should store and retrieve a complex object`() = runBlocking<Unit> {
+    fun `should store and retrieve an object with composite id`() = runBlocking {
+        val id = CompositeId("one", 1)
+        val data = CompositeData(id, "data")
+        agentStore.store(data)
+        val all = agentStore.getAll<CompositeData>()
+        assertEquals(1, all.count())
+        val foundById = agentStore.findById<CompositeData>(CompositeId("one", 1))
+        assertEquals(data, foundById)
+        val foundByExprWithId = agentStore.findBy<CompositeData> { CompositeData::id eq id }
+        assertEquals(data, foundByExprWithId.first())
+        val foundByExprWithData = agentStore.findBy<CompositeData> { CompositeData::data eq "data" }
+        assertEquals(data, foundByExprWithData.first())
+    }
+
+    @Test
+    fun `should store and retrieve a complex object`() = runBlocking {
         agentStore.store(complexObject)
         val all = agentStore.getAll<ComplexObject>()
         val cm = all.first()
@@ -154,7 +169,7 @@ class XodusTest {
     }
 
     @Test
-    fun `should be transactional`() = runBlocking<Unit> {
+    fun `should be transactional`() = runBlocking {
         try {
             agentStore.executeInAsyncTransaction {
                 store(complexObject)

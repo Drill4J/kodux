@@ -15,20 +15,29 @@ inline fun <reified T : Any> KoduxTransaction.store(any: T) {
 }
 
 inline fun <reified T : Any> KoduxTransaction.getAll(): List<T> {
-    return this.getAll(T::class.simpleName.toString()).map {
-        XodusDecoder(this, it).decode(T::class.serializer())
+    val serializer = T::class.serializer()
+    val idName = idName(serializer.descriptor)
+    return this.getAll(T::class.simpleName!!).map {
+        XodusDecoder(this, it, idName).decode(serializer)
     }
 }
 
 inline fun <reified T : Any> KoduxTransaction.findById(id: Any): T? {
     val serializer = T::class.serializer()
-    val ent = this.find(T::class.simpleName!!, idName(serializer.descriptor)!!, id as Comparable<*>).firstOrNull()
-            ?: return null
-    return XodusDecoder(this, ent).decode(serializer)
+    val encodedId =  id.encodeId()
+    val idName = idName(serializer.descriptor)!!
+    return find(T::class.simpleName!!, idName, encodedId).first?.let {
+        XodusDecoder(this, it, idName).decode(serializer)
+    }
 }
 
-inline fun <reified T : Any> KoduxTransaction.findBy(noinline expression: Expression<T>.() -> Unit) =
-        this.computeWithExpression(expression, Expression())
+inline fun <reified T : Any> KoduxTransaction.findBy(
+    noinline expression: Expression<T>.() -> Unit
+): List<T> = run {
+    val serializer = T::class.serializer()
+    val idName = idName(serializer.descriptor)!!
+    computeWithExpression(expression, Expression(idName))
+}
 
 inline fun <reified T : Any> KoduxTransaction.deleteAll() {
     this.getAll(T::class.simpleName.toString()).forEach { deleteEntityRecursively(it) }
@@ -36,13 +45,17 @@ inline fun <reified T : Any> KoduxTransaction.deleteAll() {
 
 inline fun <reified T : Any> KoduxTransaction.deleteById(id: Any) {
     val serializer = T::class.serializer()
-    val ent = this.find(T::class.simpleName!!, idName(serializer.descriptor)!!, id as Comparable<*>).firstOrNull()
-            ?: return
-    deleteEntityRecursively(ent)
+    val idName = idName(serializer.descriptor)!!
+    val encodedId =  id.encodeId()
+    find(T::class.simpleName!!, idName, encodedId).first?.let {
+        deleteEntityRecursively(it)
+    }
 }
 
 inline fun <reified T : Any> KoduxTransaction.deleteBy(expression: Expression<T>.() -> Unit) {
-    val expr = Expression<T>()
+    val serializer = T::class.serializer()
+    val idName = idName(serializer.descriptor)!!
+    val expr = Expression<T>(idName)
     expression(expr)
     val entityIterable = expr.process(this, T::class)
     entityIterable.forEach { deleteEntityRecursively(it) }
@@ -69,8 +82,7 @@ inline fun <reified T : Any> KoduxTransaction.computeWithExpression(
 ): List<T> = run {
     expression(expr)
     val entityIterable = expr.process(this, T::class)
-    entityIterable.map {
-        val strategy = T::class.serializer()
-        XodusDecoder(this, it).decode(strategy)
-    }
+    val serializer = T::class.serializer()
+    val idName = idName(serializer.descriptor)
+    entityIterable.map { XodusDecoder(this, it, idName).decode(serializer) }
 }

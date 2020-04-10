@@ -8,8 +8,10 @@ import kotlinx.serialization.internal.GeneratedSerializer
 import kotlinx.serialization.modules.EmptyModule
 import kotlinx.serialization.modules.SerialModule
 
-
-class XodusEncoder(private val txn: StoreTransaction, private val ent: Entity) : Encoder, CompositeEncoder {
+class XodusEncoder(
+    private val txn: StoreTransaction,
+    private val ent: Entity
+) : Encoder, CompositeEncoder {
     private fun SerialDescriptor.getTag(index: Int) = this.getElementName(index)
 
     override val context: SerialModule
@@ -56,10 +58,16 @@ class XodusEncoder(private val txn: StoreTransaction, private val ent: Entity) :
     }
 
     private fun encodeTaggedObject(tag: String, value: Any, @Suppress("UNUSED_PARAMETER") isId: Boolean, des: SerializationStrategy<Any>) {
-        storeObject(des, value, ent, tag)
+        storeObject(des, isId, value, ent, tag)
     }
 
-    private fun storeObject(des: SerializationStrategy<*>, value: Any, ent: Entity, tag: String) {
+    private fun storeObject(
+        des: SerializationStrategy<*>,
+        isId: Boolean,
+        value: Any,
+        ent: Entity,
+        tag: String
+    ) {
         when (value) {
             is ByteArray -> {
                 ent.setBlob(tag, value.inputStream())
@@ -98,10 +106,15 @@ class XodusEncoder(private val txn: StoreTransaction, private val ent: Entity) :
             }
 
             else -> {
-                val obj = txn.newEntity(value::class.simpleName.toString())
-                @Suppress("UNCHECKED_CAST") val strategy = value::class.serializer() as KSerializer<Any>
-                XodusEncoder(txn, obj).encode(strategy, value)
-                ent.setLink(tag, obj)
+                if (isId) {
+                    ent.setProperty(tag, value.encodeId())
+                } else {
+                    @Suppress("UNCHECKED_CAST")
+                    val strategy = value::class.serializer() as KSerializer<Any>
+                    val obj = txn.newEntity(value::class.simpleName.toString())
+                    XodusEncoder(txn, obj).encode(strategy, value)
+                    ent.setLink(tag, obj)
+                }
             }
         }
     }
@@ -117,7 +130,7 @@ class XodusEncoder(private val txn: StoreTransaction, private val ent: Entity) :
             when (property) {
                 is Enum<*> -> obj.setProperty(keyName, property.ordinal)
                 is Comparable<*> -> obj.setProperty(keyName, property)
-                else -> storeObject(unchecked(targetSerializer), property!!, obj, keyName)
+                else -> storeObject(unchecked(targetSerializer), false, property!!, obj, keyName)
             }
         } else {
             val mapKey = txn.newEntity(tag)

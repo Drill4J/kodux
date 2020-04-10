@@ -8,15 +8,29 @@ enum class EN {
 }
 
 @Serializable
+data class CompositeId(
+    val str: String,
+    val num: Int
+) : Comparable<CompositeId> {
+    override fun compareTo(other: CompositeId): Int = run {
+        str.compareTo(other.str).takeIf { it != 0 } ?: num.compareTo(other.num)
+    }
+}
+
+@Serializable
 data class StoreMe(
-    @Id
-    val id: String
+    @Id val id: String
+)
+
+@Serializable
+data class CompositeData(
+    @Id val id: CompositeId,
+    val data: String
 )
 
 @Serializable
 data class MapField(
-    @Id
-    val id: String,
+    @Id val id: String,
     val map: Map<EN, TempObject> = emptyMap()
 )
 
@@ -31,17 +45,19 @@ data class ComplexObject(
 
 @Serializable
 data class ObjectWithSetField(
-    @Id
-    val id: String,
+    @Id val id: String,
     val set: MutableSet<SetPayload>
 )
 
 @Serializable
 data class ObjectWithByteArray(
-    @Id
-    val id: String,
+    @Id val id: String,
     val array: ByteArray
-)
+) {
+    override fun equals(other: Any?): Boolean = this === other || other is ObjectWithByteArray && id == other.id
+
+    override fun hashCode(): Int = id.hashCode()
+}
 
 @Serializable
 data class SetPayload(val id: String, val name: String)

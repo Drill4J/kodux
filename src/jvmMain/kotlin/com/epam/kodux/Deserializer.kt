@@ -13,7 +13,11 @@ import kotlinx.serialization.modules.EmptyModule
 import kotlinx.serialization.modules.SerialModule
 
 
-class XodusDecoder(private val txn: StoreTransaction, private val ent: Entity) : Decoder, CompositeDecoder {
+class XodusDecoder(
+    private val txn: StoreTransaction,
+    private val ent: Entity,
+    val idName: String? = null
+) : Decoder, CompositeDecoder {
     override val context: SerialModule
         get() = EmptyModule
 
@@ -103,11 +107,13 @@ class XodusDecoder(private val txn: StoreTransaction, private val ent: Entity) :
                 val list = parseListBasedObject(des, objects)
                 unchecked(list)
             }
-            else -> {
-                if (des.descriptor.kind == UnionKind.ENUM_KIND) {
-                    this.decode(des)
-                } else
-                    XodusDecoder(txn, checkNotNull(ent.getLink(tag)) { "should be not null $tag" }).decode(des)
+            else -> when {
+                tag == idName -> decodeTaggedString(tag).decodeId(des)
+                des.descriptor.kind == UnionKind.ENUM_KIND -> decode(des)
+                else -> XodusDecoder(
+                    txn = txn,
+                    ent = checkNotNull(ent.getLink(tag)) { "should be not null $tag" }
+                ).decode(des)
             }
         }
     }

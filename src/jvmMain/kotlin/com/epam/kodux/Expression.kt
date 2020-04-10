@@ -4,7 +4,7 @@ import jetbrains.exodus.entitystore.*
 import kotlin.reflect.*
 
 
-class Expression<Q : Any> {
+class Expression<Q : Any>(private val idName: String) {
     var exprCallback: (StoreTransaction.(KClass<Q>) -> EntityIterable)? = null
 
     val subExpr: MutableSet<EntityIterable.() -> List<Entity>> = mutableSetOf()
@@ -28,8 +28,9 @@ class Expression<Q : Any> {
 
     @Suppress("IMPLICIT_CAST_TO_ANY")
     infix fun <R : Comparable<*>> KProperty1<Q, R>.eq(r: R): Expression<Q> {
-        val toString = when (r) {
-            is Enum<*> -> r.ordinal
+        val toString = when {
+            name == idName -> r.encodeId()
+            r is Enum<*> -> r.ordinal
             else -> r.toString()
         } as Comparable<*>
         if (exprCallback == null)
