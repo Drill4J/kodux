@@ -6,7 +6,10 @@ plugins {
     `maven-publish`
     idea
 }
+
+apply(from = "gradle/git-version.gradle.kts")
 apply(from = "https://raw.githubusercontent.com/Drill4J/build-scripts/master/publish.gradle")
+
 repositories {
     mavenLocal()
     mavenCentral()
