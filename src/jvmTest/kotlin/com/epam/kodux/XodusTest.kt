@@ -45,6 +45,22 @@ class XodusTest {
     }
 
     @Test
+    fun `should correctly update an object with composite id`() = runBlocking {
+        val id = CompositeId("one", 1)
+        val data = CompositeData(id, "data")
+        agentStore.store(data)
+        val all = agentStore.getAll<CompositeData>()
+        assertEquals(1, all.count())
+        val foundById = agentStore.findById<CompositeData>(CompositeId("one", 1))
+        assertEquals(data, foundById)
+        val data2 = CompositeData(id, "data2")
+        agentStore.store(data2)
+        assertEquals(1, agentStore.getAll<CompositeData>().count())
+        @Suppress("RemoveExplicitTypeArguments")
+        assertEquals(data2, agentStore.findById<CompositeData>(id))
+    }
+
+    @Test
     fun `should store and retrieve a complex object`() = runBlocking {
         agentStore.store(complexObject)
         val all = agentStore.getAll<ComplexObject>()
