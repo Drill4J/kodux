@@ -1,21 +1,14 @@
 package com.epam.kodux.decoder
 
-import com.epam.kodux.SIZE_PROPERTY_NAME
-import com.epam.kodux.unchecked
-import jetbrains.exodus.entitystore.Entity
-import jetbrains.exodus.entitystore.StoreTransaction
+import com.epam.kodux.*
+import jetbrains.exodus.entitystore.*
 import kotlinx.serialization.*
-import kotlinx.serialization.builtins.ByteArraySerializer
-import kotlinx.serialization.builtins.ListSerializer
-import kotlinx.serialization.builtins.SetSerializer
-import kotlinx.serialization.internal.AbstractCollectionSerializer
-import kotlinx.serialization.internal.GeneratedSerializer
-import kotlinx.serialization.internal.MapLikeSerializer
-import kotlinx.serialization.modules.EmptyModule
-import kotlinx.serialization.modules.SerialModule
+import kotlinx.serialization.builtins.*
+import kotlinx.serialization.internal.*
+import kotlinx.serialization.modules.*
 
 
-class XodusDecoder(private val txn: StoreTransaction, private val ent: Entity) : Decoder, CompositeDecoder {
+class XodusDecoder(private val txn: StoreTransaction, private val ent: Entity, val idName: String? = null) : Decoder, CompositeDecoder {
     override val context: SerialModule = EmptyModule
 
     override val updateMode: UpdateMode = UpdateMode.UPDATE
@@ -108,8 +101,8 @@ class XodusDecoder(private val txn: StoreTransaction, private val ent: Entity) :
                 tag == idName -> decodeTaggedString(tag).decodeId(des)
                 des.descriptor.kind == UnionKind.ENUM_KIND -> decode(des)
                 else -> XodusDecoder(
-                    txn = txn,
-                    ent = checkNotNull(ent.getLink(tag)) { "should be not null $tag" }
+                        txn = txn,
+                        ent = checkNotNull(ent.getLink(tag)) { "should be not null $tag" }
                 ).decode(des)
             }
         }

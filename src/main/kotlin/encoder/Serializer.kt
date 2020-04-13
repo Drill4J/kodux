@@ -1,15 +1,10 @@
 package com.epam.kodux.encoder
 
-import com.epam.kodux.Id
-import com.epam.kodux.SIZE_PROPERTY_NAME
-import com.epam.kodux.unchecked
-import jetbrains.exodus.entitystore.Entity
-import jetbrains.exodus.entitystore.StoreTransaction
+import com.epam.kodux.*
+import jetbrains.exodus.entitystore.*
 import kotlinx.serialization.*
-import kotlinx.serialization.internal.AbstractCollectionSerializer
-import kotlinx.serialization.internal.GeneratedSerializer
-import kotlinx.serialization.modules.EmptyModule
-import kotlinx.serialization.modules.SerialModule
+import kotlinx.serialization.internal.*
+import kotlinx.serialization.modules.*
 
 class XodusEncoder(
     private val txn: StoreTransaction,

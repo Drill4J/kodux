@@ -1,5 +1,5 @@
 package com.epam.kodux
 
-import kotlinx.serialization.Serializable
+import kotlinx.serialization.*
 
 typealias KoduxDocument = Serializable
