@@ -3,9 +3,12 @@
 rootProject.name = "kodux"
 pluginManagement {
     val kotlinVersion: String by settings
+    val benchmarkVersion: String by settings
     plugins {
         kotlin("jvm") version kotlinVersion
         kotlin("plugin.serialization") version kotlinVersion
+        kotlin("plugin.allopen") version kotlinVersion
+        id("kotlinx.benchmark") version benchmarkVersion
     }
 
     repositories {
@@ -14,3 +17,5 @@ pluginManagement {
         maven(url = "https://dl.bintray.com/kotlin/kotlinx/")
     }
 }
+
+include(":benchmarks")
