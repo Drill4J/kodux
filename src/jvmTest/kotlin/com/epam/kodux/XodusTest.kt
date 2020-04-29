@@ -7,7 +7,11 @@ import kotlinx.serialization.Serializable
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
+import java.util.*
+import kotlin.random.*
+import kotlin.random.Random
 import kotlin.test.*
+import kotlin.time.*
 
 class XodusTest {
     private val agentId = "myAgent"
@@ -27,6 +31,43 @@ class XodusTest {
     @AfterTest
     fun after() {
         agentStore.close()
+    }
+
+    @ExperimentalTime
+    @Test
+    fun `big data test`() {
+        val names = listOf("asdf", "asdf", "sdf", "asf")
+        Random.nextInt()
+        val data: (Int, Int) -> List<SomeData> = { n1, n2 ->
+            List(n1) {
+                SomeData(
+                    id = UUID.randomUUID().toString(),
+                    type = "123",
+                    data = List(Random.nextInt(10, n2)) {
+                        (1..10).fold(StringBuilder()) { acc, i ->
+                            acc.append(UUID.randomUUID().toString())
+                        }.toString()
+                    }
+                )
+            }
+        }
+        val bigData = BigData(
+            id = UUID.randomUUID().toString(),
+            map = mapOf(
+                "one" to data(1000, 100),
+                "two" to data(200, 20)
+            )
+        )
+        runBlocking {
+            println("Storing")
+            val measureTime = measureTime { agentStore.store(bigData) }
+            println("Stored in $measureTime")
+            println("Loading")
+            val tt = measureTime { agentStore.findById<BigData>(bigData.id) }
+            println("Loade in $tt")
+
+        }
+
     }
 
     @Test

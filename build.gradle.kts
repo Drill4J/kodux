@@ -7,12 +7,13 @@ plugins {
     idea
 }
 
-apply(from = "gradle/git-version.gradle.kts")
-apply(from = "https://raw.githubusercontent.com/Drill4J/build-scripts/master/publish.gradle")
+val scriptUrl: String by extra
+
+apply(from = "$scriptUrl/git-version.gradle.kts")
 
 repositories {
     mavenLocal()
-    mavenCentral()
+    apply(from = "$scriptUrl/maven-repo.gradle.kts")
     jcenter()
 
 }
