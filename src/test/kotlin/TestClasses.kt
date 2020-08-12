@@ -87,3 +87,12 @@ data class ObjectWithReferenceElementsMap(val st: Map<TempObject, TempObject>, @
 
 @Serializable
 data class ObjectWithReferenceElementsMapMixed(val st: Map<String, TempObject>, @Id val id: Int)
+
+@Serializable
+data class ObjectWithList(@Id val id: String, val primitiveList: List<Boolean>)
+
+@Serializable
+data class ObjectWithSet(@Id val id: String, val primitiveSet: Set<Boolean>)
+
+@Serializable
+data class ObjectWithListOfComplexObject(@Id val id: String, val list: List<TempObject>)

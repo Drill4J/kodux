@@ -24,11 +24,10 @@ val xodusVersion: String by project
 val benchmarkVersion: String by project
 
 dependencies {
-    implementation(kotlin("stdlib-jdk8"))
     implementation(project(":"))
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:$coroutinesVersion")
     implementation("org.jetbrains.xodus:xodus-entity-store:$xodusVersion")
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-runtime:$serializationVersion")
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-core:$serializationVersion")
     implementation("org.jetbrains.kotlinx:kotlinx.benchmark.runtime-jvm:$benchmarkVersion")
     testImplementation(kotlin("test-junit"))
 }

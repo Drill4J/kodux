@@ -2,15 +2,15 @@
 
 package com.epam.kodux
 
-import kotlinx.coroutines.runBlocking
-import kotlinx.serialization.Serializable
-import org.junit.Rule
+import kotlinx.coroutines.*
+import org.junit.*
 import org.junit.Test
-import org.junit.rules.TemporaryFolder
+import org.junit.rules.*
 import kotlin.test.*
 
 class XodusTest {
     private val agentId = "myAgent"
+
     @get:Rule
     val projectDir = TemporaryFolder()
     private lateinit var agentStore: StoreClient
@@ -138,11 +138,46 @@ class XodusTest {
     }
 
     @Test
+    fun `should find and correctly update object with primitive collection`() = runBlocking<Unit> {
+        agentStore.store(ObjectWithList("list", listOf(true, true)))
+        val all = agentStore.getAll<ObjectWithList>()
+        assertEquals(1, all.count())
+        val actual = agentStore.findById<ObjectWithList>("list")
+        assertNotNull(actual)
+        assertEquals(2, actual.primitiveList.count())
+        agentStore.store(ObjectWithList("list", listOf(false, false)))
+        assertEquals(1, agentStore.getAll<ObjectWithList>().count())
+    }
+
+    @Test
+    fun `should store and retrieve object with collection of complex object`(): Unit = runBlocking {
+        val listOfComplexObject = ObjectWithListOfComplexObject("non-primitive list", listOf(TempObject("test1", 1), TempObject("test2", 2)))
+        agentStore.store(listOfComplexObject)
+        val all = agentStore.getAll<ObjectWithListOfComplexObject>()
+        assertEquals(1, all.count())
+        val actual = agentStore.findById<ObjectWithListOfComplexObject>(listOfComplexObject.id)
+        assertNotNull(actual)
+        assertEquals(2, actual.list.count())
+    }
+
+    @Test
     fun `should store and retrieve object with reference collection`() = runBlocking<Unit> {
         agentStore.store(ObjectWithReferenceElementsCollection(setOf(TempObject("st", 2)), 1))
         val all = agentStore.getAll<ObjectWithReferenceElementsCollection>()
         assertTrue(all.isNotEmpty())
         assertTrue(all.first().st.isNotEmpty())
+    }
+
+    @Test
+    fun `should find and correctly update object with reference collection`() = runBlocking<Unit> {
+        agentStore.store(ObjectWithSet("list", setOf(true, false)))
+        val all = agentStore.getAll<ObjectWithSet>()
+        assertEquals(1, all.count())
+        val actual = agentStore.findById<ObjectWithSet>("list")
+        assertNotNull(actual)
+        assertEquals(2, actual.primitiveSet.count())
+        agentStore.store(ObjectWithSet("list", setOf(false)))
+        assertEquals(1, agentStore.getAll<ObjectWithSet>().count())
     }
 
     @Test
@@ -169,10 +204,6 @@ class XodusTest {
         assertTrue(all.first().st.isNotEmpty())
     }
 
-
-    @Serializable
-    data class ObjectWithList(@Id val id: String, val primitiveList: List<Boolean>)
-
     @Test
     fun `should restore list related object with right order`() = runBlocking<Unit> {
         val primitiveList = listOf(true, false, false, true)
@@ -192,7 +223,8 @@ class XodusTest {
                 store(complexObject)
                 fail("test")
             }
-        } catch (ignored: Throwable) { }
+        } catch (ignored: Throwable) {
+        }
         assertTrue(agentStore.getAll<ComplexObject>().isEmpty())
     }
 

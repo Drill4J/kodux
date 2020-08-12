@@ -39,7 +39,7 @@ class KoduxBenchmarks {
                 deleteEntityRecursively(this)
             }
             val obj = this.newEntity(any::class.simpleName.toString())
-            XodusEncoder(this, obj).encode(Xs.serializer(), any)
+            XodusEncoder(this, obj).encodeSerializableValue(Xs.serializer(), any)
         }
     }
 
