@@ -3,8 +3,9 @@ package com.epam.kodux
 import kotlinx.serialization.*
 
 
-enum class EN {
-    B, C
+enum class EnumExample {
+    FIRST,
+    SECOND
 }
 
 @Serializable
@@ -31,7 +32,7 @@ data class CompositeData(
 @Serializable
 data class MapField(
     @Id val id: String,
-    val map: Map<EN, TempObject> = emptyMap()
+    val map: Map<EnumExample, TempObject> = emptyMap()
 )
 
 @Serializable
@@ -39,7 +40,7 @@ data class ComplexObject(
     @Id val id: String,
     val ch: Char?,
     val blink: SubObject?,
-    val en: EN = EN.B,
+    val enumExample: EnumExample = EnumExample.FIRST,
     val nullString: String?
 )
 
@@ -60,30 +61,62 @@ data class ObjectWithByteArray(
 }
 
 @Serializable
-data class SetPayload(val id: String, val name: String)
+data class SetPayload(
+    val id: String,
+    val name: String
+)
 
 @Serializable
-data class SubObject(val sub_string: String, val sub_int: Int, val sub_last: Last)
+data class SubObject(
+    val string: String,
+    val int: Int,
+    val last: Last
+)
 
+@Serializable
+data class SimpleObject(
+    @Id val id: String,
+    val string: String,
+    val int: Int,
+    val last: Last
+)
 
 @Serializable
 data class Last(val string: Byte)
 
 
 @Serializable
-data class TempObject(val st: String, val int: Int)
+data class TempObject(
+    val st: String,
+    val int: Int
+)
 
 @Serializable
-data class ObjectWithPrimitiveElementsCollection(val st: List<String>, @Id val id: Int)
+data class ObjectWithPrimitiveElementsCollection(
+    @Id val id: Int,
+    val st: List<String>
+)
 
 @Serializable
-data class ObjectWithReferenceElementsCollection(val st: Set<TempObject>, @Id val id: Int)
+data class ObjectWithReferenceElementsCollection(
+    @Id val id: Int,
+    val st: Set<TempObject>
+)
 
 @Serializable
-data class ObjectWithPrimitiveElementsMap(val st: Map<String, Int>, @Id val id: Int)
+data class ObjectWithPrimitiveElementsMap(
+    @Id val id: Int,
+    val st: Map<String, Int>
+)
 
 @Serializable
-data class ObjectWithReferenceElementsMap(val st: Map<TempObject, TempObject>, @Id val id: Int)
+data class ObjectWithReferenceElementsMap(
+    @Id val id: Int,
+    val st: Map<TempObject, TempObject>
+)
 
 @Serializable
-data class ObjectWithReferenceElementsMapMixed(val st: Map<String, TempObject>, @Id val id: Int)
+data class ObjectWithReferenceElementsMapMixed(
+    @Id val id: Int,
+    val st: Map<String, TempObject>
+)

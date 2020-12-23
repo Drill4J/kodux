@@ -1,12 +1,15 @@
 package com.epam.kodux
 
 import kotlinx.serialization.*
+import kotlinx.serialization.descriptors.*
 import kotlinx.serialization.json.*
 import kotlin.reflect.full.*
 
 const val SIZE_PROPERTY_NAME = "size"
 
-val json = Json(JsonConfiguration.Stable)
+val json = Json {
+    allowStructuredMapKeys = true
+}
 
 inline fun <reified T : Any> idPair(any: T): Pair<String?, Any?> {
     val idName = idName(T::class.serializer().descriptor)
@@ -17,9 +20,9 @@ fun idName(desc: SerialDescriptor): String? = (0 until desc.elementsCount).first
     desc.getElementAnnotations(inx).any { it is Id }
 }?.let { idIndex -> desc.getElementName(idIndex) }
 
-fun Any.encodeId(): String = this as? String ?: json.stringify(unchecked(this::class.serializer()), this)
+fun Any.encodeId(): String = this as? String ?: json.encodeToString(unchecked(this::class.serializer()), this)
 
-fun <T> String.decodeId(deser: DeserializationStrategy<T>): T = json.parse(deser, this)
+fun <T> String.decodeId(deser: DeserializationStrategy<T>): T = json.decodeFromString(deser, this)
 
 @Suppress("UNCHECKED_CAST")
 fun <T> unchecked(any: Any) = any as T

@@ -13,14 +13,14 @@ inline fun <reified T : Any> KoduxTransaction.store(any: T) {
         deleteEntityRecursively(this)
     }
     val obj = this.newEntity(any::class.simpleName.toString())
-    XodusEncoder(this, obj).encode(T::class.serializer(), any)
+    XodusEncoder(this, obj).encodeSerializableValue(T::class.serializer(), any)
 }
 
 inline fun <reified T : Any> KoduxTransaction.getAll(): List<T> {
     val serializer = T::class.serializer()
     val idName = idName(serializer.descriptor)
     return this.getAll(T::class.simpleName!!).map {
-        XodusDecoder(this, it, idName).decode(serializer)
+        XodusDecoder(this, it, idName).decodeSerializableValue(serializer)
     }
 }
 
@@ -28,7 +28,7 @@ inline fun <reified T : Any> KoduxTransaction.findById(id: Any): T? {
     val serializer = T::class.serializer()
     val idName = idName(serializer.descriptor)!!
     return findById<T>(idName, id)?.let {
-        XodusDecoder(this, it, idName).decode(serializer)
+        XodusDecoder(this, it, idName).decodeSerializableValue(serializer)
     }
 }
 
@@ -47,7 +47,7 @@ inline fun <reified T : Any> KoduxTransaction.deleteAll() {
 inline fun <reified T : Any> KoduxTransaction.deleteById(id: Any) {
     val serializer = T::class.serializer()
     val idName = idName(serializer.descriptor)!!
-    val encodedId =  id.encodeId()
+    val encodedId = id.encodeId()
     find(T::class.simpleName!!, idName, encodedId).first?.let {
         deleteEntityRecursively(it)
     }
@@ -84,11 +84,11 @@ inline fun <reified T : Any> KoduxTransaction.findById(
 ): Entity? = find(T::class.simpleName!!, idName, id.encodeId()).first
 
 inline fun <reified T : Any> KoduxTransaction.computeWithExpression(
-        noinline expression: Expression<T>.() -> Unit, expr: Expression<T>
+    noinline expression: Expression<T>.() -> Unit, expr: Expression<T>
 ): List<T> = run {
     expression(expr)
     val entityIterable = expr.process(this, T::class)
     val serializer = T::class.serializer()
     val idName = idName(serializer.descriptor)
-    entityIterable.map { XodusDecoder(this, it, idName).decode(serializer) }
+    entityIterable.map { XodusDecoder(this, it, idName).decodeSerializableValue(serializer) }
 }
