@@ -1,13 +1,14 @@
 package kodux.benchmarks
 
 import com.epam.kodux.*
-import com.epam.kodux.encoder.XodusEncoder
-import kotlinx.coroutines.runBlocking
-import kotlinx.serialization.encode
+import com.epam.kodux.encoder.*
+import jetbrains.exodus.entitystore.*
+import kotlinx.coroutines.*
 import org.openjdk.jmh.annotations.*
-import org.openjdk.jmh.infra.Blackhole
-import java.nio.file.Files
-import java.util.concurrent.TimeUnit
+import org.openjdk.jmh.infra.*
+import java.io.*
+import java.util.*
+import java.util.concurrent.*
 
 @KoduxDocument
 data class Xs(@Id val st: String, val w: Int)
@@ -18,17 +19,14 @@ data class Xs(@Id val st: String, val w: Int)
 @Measurement(iterations = 3, time = 2, timeUnit = TimeUnit.NANOSECONDS)
 class KoduxBenchmarks {
 
-    var i = 0
-    private lateinit var agentStore: StoreClient
+    private val storageDir = File("build/tmp/test/storages/${this::class.simpleName}-${UUID.randomUUID()}")
 
-    @Setup
-    fun before() {
-        agentStore = StoreManager(Files.createTempDirectory("bench").resolve("agent").toFile()).agentStore("my")
-    }
+    private val storeClient = StoreClient(PersistentEntityStores.newInstance(storageDir))
 
     @TearDown
     fun after() {
-        agentStore.close()
+        storeClient.close()
+        storageDir.deleteRecursively()
     }
 
     @Benchmark
@@ -39,7 +37,7 @@ class KoduxBenchmarks {
                 deleteEntityRecursively(this)
             }
             val obj = this.newEntity(any::class.simpleName.toString())
-            XodusEncoder(this, obj).encode(Xs.serializer(), any)
+            XodusEncoder(this, obj).encodeSerializableValue(Xs.serializer(), any)
         }
     }
 

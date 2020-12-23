@@ -2,31 +2,28 @@
 
 package com.epam.kodux
 
-import kotlinx.coroutines.runBlocking
+import jetbrains.exodus.entitystore.*
+import kotlinx.coroutines.*
 import kotlinx.serialization.Serializable
-import org.junit.Rule
 import org.junit.Test
-import org.junit.rules.TemporaryFolder
+import java.io.*
+import java.util.*
 import kotlin.test.*
 
 class XodusTest {
-    private val agentId = "myAgent"
-    @get:Rule
-    val projectDir = TemporaryFolder()
-    private lateinit var agentStore: StoreClient
 
     private val last = Last(2.toByte())
     private val blink = SubObject("subStr", 12, last)
-    private val complexObject = ComplexObject("str", 'x', blink, EN.C, null)
+    private val complexObject = ComplexObject("str", 'x', blink, EnumExample.SECOND, null)
+    private val simpleObject = SimpleObject("id", "subStr", 12, last)
 
-    @BeforeTest
-    fun before() {
-        agentStore = StoreManager(projectDir.newFolder().resolve("agent")).agentStore(agentId)
-    }
+    private val storageDir = File("build/tmp/test/storages/${this::class.simpleName}-${UUID.randomUUID()}")
+    private val agentStore = StoreClient(PersistentEntityStores.newInstance(storageDir))
 
     @AfterTest
     fun after() {
         agentStore.close()
+        storageDir.deleteRecursively()
     }
 
     @Test
@@ -61,6 +58,18 @@ class XodusTest {
     }
 
     @Test
+    fun `should store and retrieve a simple object`() = runBlocking {
+        agentStore.store(simpleObject)
+        val all = agentStore.getAll<SimpleObject>()
+        val simpleObject1 = all.first()
+        assertTrue(all.isNotEmpty())
+        assertEquals(simpleObject1.id, "id")
+        assertEquals(simpleObject1.int, 12)
+        assertEquals(simpleObject1.string, "subStr")
+        assertEquals(simpleObject1.last, last)
+    }
+
+    @Test
     fun `should store and retrieve a complex object`() = runBlocking {
         agentStore.store(complexObject)
         val all = agentStore.getAll<ComplexObject>()
@@ -69,28 +78,22 @@ class XodusTest {
         assertEquals(cm.id, "str")
         assertEquals(cm.ch, 'x')
         assertEquals(cm.blink, blink)
-        assertEquals(cm.en, EN.C)
+        assertEquals(cm.enumExample, EnumExample.SECOND)
         assertNull(cm.nullString)
     }
 
     @Test
-    fun `should find object with complex expressions`() = runBlocking<Unit> {
+    fun `should find object with complex expressions`() = runBlocking {
         agentStore.store(complexObject)
         agentStore.store(complexObject.copy(id = "123", ch = 'w'))
 
-        val all = agentStore.findBy<ComplexObject> { (ComplexObject::en eq EN.C) and (ComplexObject::id eq "123") and (ComplexObject::id eq "str") }
+        val all =
+            agentStore.findBy<ComplexObject> { (ComplexObject::enumExample eq EnumExample.SECOND) and (ComplexObject::id eq "123") and (ComplexObject::id eq "str") }
         assertTrue(all.isNotEmpty())
     }
 
-//    @Test
-//    fun `xdfg`() = runBlocking<Unit> {
-//        val serializer = ComplexObject.serializer()
-//        val serializer1 = EN.serializer()
-//        println()
-//    }
-
     @Test
-    fun `should remove entities of a complex object by ID recursively`() = runBlocking<Unit> {
+    fun `should remove entities of a complex object by ID recursively`() = runBlocking {
         agentStore.store(complexObject)
         agentStore.deleteById<ComplexObject>("str")
         assertTrue(agentStore.getAll<ComplexObject>().isEmpty())
@@ -99,9 +102,9 @@ class XodusTest {
     }
 
     @Test
-    fun `should remove entities of a complex object by Prop recursively`() = runBlocking<Unit> {
+    fun `should remove entities of a complex object by Prop recursively`() = runBlocking {
         agentStore.store(complexObject)
-        agentStore.deleteBy<ComplexObject> { ComplexObject::en eq EN.C }
+        agentStore.deleteBy<ComplexObject> { ComplexObject::enumExample eq EnumExample.SECOND }
         assertTrue(agentStore.getAll<ComplexObject>().isEmpty())
         assertTrue(agentStore.getAll<SubObject>().isEmpty())
         assertTrue(agentStore.getAll<Last>().isEmpty())
@@ -109,20 +112,20 @@ class XodusTest {
 
 
     @Test
-    fun `should store linked objects`() = runBlocking<Unit> {
+    fun `should store linked objects`() = runBlocking {
         agentStore.store(complexObject)
         assertTrue(agentStore.getAll<Last>().isNotEmpty())
     }
 
     @Test
-    fun `should update object`() = runBlocking<Unit> {
+    fun `should update object`() = runBlocking {
         agentStore.store(complexObject)
         agentStore.store(complexObject.copy(ch = 'y'))
         assertEquals(agentStore.getAll<ComplexObject>().first().ch, 'y')
     }
 
     @Test
-    fun `should store several objects`() = runBlocking<Unit> {
+    fun `should store several objects`() = runBlocking {
         agentStore.store(complexObject.copy(id = "1"))
         agentStore.store(complexObject.copy(id = "2"))
         val all = agentStore.getAll<ComplexObject>()
@@ -130,40 +133,40 @@ class XodusTest {
     }
 
     @Test
-    fun `should store and retrieve object with primitive collection`() = runBlocking<Unit> {
-        agentStore.store(ObjectWithPrimitiveElementsCollection(listOf("st1", "st2"), 1))
+    fun `should store and retrieve object with primitive collection`() = runBlocking {
+        agentStore.store(ObjectWithPrimitiveElementsCollection(1, listOf("st1", "st2")))
         val all = agentStore.getAll<ObjectWithPrimitiveElementsCollection>()
         assertTrue(all.isNotEmpty())
         assertTrue(all.first().st.isNotEmpty())
     }
 
     @Test
-    fun `should store and retrieve object with reference collection`() = runBlocking<Unit> {
-        agentStore.store(ObjectWithReferenceElementsCollection(setOf(TempObject("st", 2)), 1))
+    fun `should store and retrieve object with reference collection`() = runBlocking {
+        agentStore.store(ObjectWithReferenceElementsCollection(1, setOf(TempObject("st", 2))))
         val all = agentStore.getAll<ObjectWithReferenceElementsCollection>()
         assertTrue(all.isNotEmpty())
         assertTrue(all.first().st.isNotEmpty())
     }
 
     @Test
-    fun `should store and retrieve object with primitive map`() = runBlocking<Unit> {
-        agentStore.store(ObjectWithPrimitiveElementsMap(mapOf("x" to 2), 1))
+    fun `should store and retrieve object with primitive map`() = runBlocking {
+        agentStore.store(ObjectWithPrimitiveElementsMap(1, mapOf("x" to 2)))
         val all = agentStore.getAll<ObjectWithPrimitiveElementsMap>()
         assertTrue(all.isNotEmpty())
         assertTrue(all.first().st.isNotEmpty())
     }
 
     @Test
-    fun `should store and retrieve object with mixed map - Simple key and complex value`() = runBlocking<Unit> {
-        agentStore.store(ObjectWithReferenceElementsMapMixed(mapOf("x" to TempObject("stsa", 3)), 1))
+    fun `should store and retrieve object with mixed map - Simple key and complex value`() = runBlocking {
+        agentStore.store(ObjectWithReferenceElementsMapMixed(1, mapOf("x" to TempObject("stsa", 3))))
         val all = agentStore.getAll<ObjectWithReferenceElementsMapMixed>()
         assertTrue(all.isNotEmpty())
         assertTrue(all.first().st.isNotEmpty())
     }
 
     @Test
-    fun `should store and retrieve object with reference map`() = runBlocking<Unit> {
-        agentStore.store(ObjectWithReferenceElementsMap(mapOf(TempObject("st", 2) to TempObject("stsa", 3)), 3))
+    fun `should store and retrieve object with reference map`() = runBlocking {
+        agentStore.store(ObjectWithReferenceElementsMap(3, mapOf(TempObject("st", 2) to TempObject("stsa", 3))))
         val all = agentStore.getAll<ObjectWithReferenceElementsMap>()
         assertTrue(all.isNotEmpty())
         assertTrue(all.first().st.isNotEmpty())
@@ -174,7 +177,7 @@ class XodusTest {
     data class ObjectWithList(@Id val id: String, val primitiveList: List<Boolean>)
 
     @Test
-    fun `should restore list related object with right order`() = runBlocking<Unit> {
+    fun `should restore list related object with right order`() = runBlocking {
         val primitiveList = listOf(true, false, false, true)
         agentStore.store(ObjectWithList("id", primitiveList))
         val actual = agentStore.findById<ObjectWithList>("id")
@@ -192,12 +195,13 @@ class XodusTest {
                 store(complexObject)
                 fail("test")
             }
-        } catch (ignored: Throwable) { }
+        } catch (ignored: Throwable) {
+        }
         assertTrue(agentStore.getAll<ComplexObject>().isEmpty())
     }
 
     @Test
-    fun `should not store old entities when set field gets updated`() = runBlocking<Unit> {
+    fun `should not store old entities when set field gets updated`() = runBlocking {
         val set = mutableSetOf(
             SetPayload("1", "name1")
         )
@@ -216,7 +220,7 @@ class XodusTest {
     }
 
     @Test
-    fun `should preserve and restore objects with byte arrays among fields`() = runBlocking<Unit> {
+    fun `should preserve and restore objects with byte arrays among fields`() = runBlocking {
         val testArray = "test".toByteArray()
         val obj = ObjectWithByteArray("myArray", testArray)
         agentStore.store(obj)
@@ -225,11 +229,11 @@ class XodusTest {
     }
 
     @Test
-    fun `should preserve and retrieve map fields with Enum keys`() = runBlocking<Unit> {
-        val obj = MapField("test", mapOf(EN.B to TempObject("a", 5)))
+    fun `should preserve and retrieve map fields with Enum keys`() = runBlocking {
+        val obj = MapField("test", mapOf(EnumExample.FIRST to TempObject("a", 5)))
         agentStore.store(obj)
         val retrievedMap = agentStore.findById<MapField>("test")?.map.orEmpty()
-        assertEquals(5, retrievedMap[EN.B]?.int)
+        assertEquals(5, retrievedMap[EnumExample.FIRST]?.int)
     }
 
     @Test

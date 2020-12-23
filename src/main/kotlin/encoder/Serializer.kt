@@ -3,6 +3,8 @@ package com.epam.kodux.encoder
 import com.epam.kodux.*
 import jetbrains.exodus.entitystore.*
 import kotlinx.serialization.*
+import kotlinx.serialization.descriptors.*
+import kotlinx.serialization.encoding.*
 import kotlinx.serialization.internal.*
 import kotlinx.serialization.modules.*
 
@@ -12,8 +14,8 @@ class XodusEncoder(
 ) : Encoder, CompositeEncoder {
     private fun SerialDescriptor.getTag(index: Int) = this.getElementName(index)
 
-    override val context: SerialModule
-        get() = EmptyModule
+    override val serializersModule: SerializersModule
+        get() = EmptySerializersModule
 
     private fun encodeTaggedBoolean(tag: String, value: Boolean) {
         ent.setProperty(tag, value)
@@ -55,7 +57,12 @@ class XodusEncoder(
         ent.setProperty(tag, value)
     }
 
-    private fun encodeTaggedObject(tag: String, value: Any, @Suppress("UNUSED_PARAMETER") isId: Boolean, des: SerializationStrategy<Any>) {
+    private fun encodeTaggedObject(
+        tag: String,
+        value: Any,
+        @Suppress("UNUSED_PARAMETER") isId: Boolean,
+        des: SerializationStrategy<Any>
+    ) {
         storeObject(des, isId, value, ent, tag)
     }
 
@@ -71,28 +78,27 @@ class XodusEncoder(
                 ent.setBlob(tag, value.inputStream())
             }
             is Map<*, *> -> {
-                val abstractCollectionSerializer = des as AbstractCollectionSerializer<*, *, *>
+                val mapLikeSerializer = des as MapLikeSerializer<*, *, *, *>
                 val obj = txn.newEntity("${ent.type}:$tag:map")
                 value.entries.mapIndexed { index, (key, vl) ->
-                    parseElement(abstractCollectionSerializer.typeParams[0], key, obj, "k$index", "${ent.type}:$tag:map:key")
-                    parseElement(abstractCollectionSerializer.typeParams[1], vl, obj, "v$index", "${ent.type}:$tag:map:value")
+                    parseElement(mapLikeSerializer.keySerializer, key, obj, "k$index", "${ent.type}:$tag:map:key")
+                    parseElement(mapLikeSerializer.valueSerializer, vl, obj, "v$index", "${ent.type}:$tag:map:value")
                 }
                 obj.setProperty(SIZE_PROPERTY_NAME, value.size)
                 ent.setLink(tag, obj)
             }
             is Collection<*> -> {
-                val abstractCollectionSerializer = des as AbstractCollectionSerializer<*, *, *>
-                val deserializer: KSerializer<Any> = unchecked(abstractCollectionSerializer.typeParams.first())
                 val filterNotNull = value.filterNotNull()
-                if (deserializer is GeneratedSerializer) {
+                if (filterNotNull.first()::class.serializer() is GeneratedSerializer) {
                     filterNotNull.forEach {
                         val obj = txn.newEntity(it::class.simpleName.toString())
-                        XodusEncoder(txn, obj).encode(deserializer, it)
+                        val serializer: KSerializer<Any> = unchecked(it::class.serializer())
+                        XodusEncoder(txn, obj).encodeSerializableValue(serializer, it)
                         ent.addLink(tag, obj)
                     }
                 } else {
                     val obj = txn.newEntity(ent::class.simpleName.toString() + "list")
-                    obj.setProperty("size", filterNotNull.size)
+                    obj.setProperty(SIZE_PROPERTY_NAME, filterNotNull.size)
                     filterNotNull.forEachIndexed { i, it ->
                         obj.setProperty(i.toString(), it as Comparable<*>)
                     }
@@ -110,7 +116,7 @@ class XodusEncoder(
                     @Suppress("UNCHECKED_CAST")
                     val strategy = value::class.serializer() as KSerializer<Any>
                     val obj = txn.newEntity(value::class.simpleName.toString())
-                    XodusEncoder(txn, obj).encode(strategy, value)
+                    XodusEncoder(txn, obj).encodeSerializableValue(strategy, value)
                     ent.setLink(tag, obj)
                 }
             }
@@ -118,11 +124,11 @@ class XodusEncoder(
     }
 
     private fun parseElement(
-            targetSerializer: KSerializer<out Any?>,
-            property: Any?,
-            obj: Entity,
-            keyName: String,
-            tag: String
+        targetSerializer: KSerializer<out Any?>,
+        property: Any?,
+        obj: Entity,
+        keyName: String,
+        tag: String
     ) {
         if (targetSerializer !is GeneratedSerializer<*>) {
             when (property) {
@@ -132,7 +138,7 @@ class XodusEncoder(
             }
         } else {
             val mapKey = txn.newEntity(tag)
-            XodusEncoder(txn, mapKey).encode(unchecked(targetSerializer), property!!)
+            XodusEncoder(txn, mapKey).encodeSerializableValue(unchecked(targetSerializer), property!!)
             obj.setLink(keyName, mapKey)
         }
     }
@@ -143,7 +149,6 @@ class XodusEncoder(
     override fun encodeNotNullMark() = Unit
     override fun encodeNull() = encodeTaggedNull(popTag())
 
-    override fun encodeUnit() = TODO("not implemented yet")
     override fun encodeBoolean(value: Boolean) = encodeTaggedBoolean(popTag(), value)
     override fun encodeByte(value: Byte) = encodeTaggedByte(popTag(), value)
     override fun encodeShort(value: Short) = encodeTaggedShort(popTag(), value)
@@ -156,74 +161,69 @@ class XodusEncoder(
 
     override fun encodeEnum(enumDescriptor: SerialDescriptor, index: Int) {}
 
-    override fun beginStructure(descriptor: SerialDescriptor, vararg typeSerializers: KSerializer<*>): CompositeEncoder {
-        return this
-    }
+    override fun beginStructure(descriptor: SerialDescriptor): CompositeEncoder = this
 
     override fun endStructure(descriptor: SerialDescriptor) {
         if (tagStack.isNotEmpty()) popTag()
     }
 
 
-    override fun encodeNonSerializableElement(descriptor: SerialDescriptor, index: Int, value: Any) =
-            TODO("not implemented yet")
-
-    override fun encodeUnitElement(descriptor: SerialDescriptor, index: Int) = TODO("not implemented yet")
     override fun encodeBooleanElement(descriptor: SerialDescriptor, index: Int, value: Boolean) =
-            encodeTaggedBoolean(descriptor.getTag(index), value)
+        encodeTaggedBoolean(descriptor.getTag(index), value)
 
     override fun encodeByteElement(descriptor: SerialDescriptor, index: Int, value: Byte) =
-            encodeTaggedByte(descriptor.getTag(index), value)
+        encodeTaggedByte(descriptor.getTag(index), value)
 
     override fun encodeShortElement(descriptor: SerialDescriptor, index: Int, value: Short) =
-            encodeTaggedShort(descriptor.getTag(index), value)
+        encodeTaggedShort(descriptor.getTag(index), value)
 
     override fun encodeIntElement(descriptor: SerialDescriptor, index: Int, value: Int) =
-            encodeTaggedInt(descriptor.getTag(index), value)
+        encodeTaggedInt(descriptor.getTag(index), value)
 
     override fun encodeLongElement(descriptor: SerialDescriptor, index: Int, value: Long) =
-            encodeTaggedLong(descriptor.getTag(index), value)
+        encodeTaggedLong(descriptor.getTag(index), value)
 
     override fun encodeFloatElement(descriptor: SerialDescriptor, index: Int, value: Float) =
-            encodeTaggedFloat(descriptor.getTag(index), value)
+        encodeTaggedFloat(descriptor.getTag(index), value)
 
     override fun encodeDoubleElement(descriptor: SerialDescriptor, index: Int, value: Double) =
-            encodeTaggedDouble(descriptor.getTag(index), value)
+        encodeTaggedDouble(descriptor.getTag(index), value)
 
     override fun encodeCharElement(descriptor: SerialDescriptor, index: Int, value: Char) =
-            encodeTaggedChar(descriptor.getTag(index), value)
+        encodeTaggedChar(descriptor.getTag(index), value)
 
     override fun encodeStringElement(descriptor: SerialDescriptor, index: Int, value: String) =
-            encodeTaggedString(descriptor.getTag(index), value)
+        encodeTaggedString(descriptor.getTag(index), value)
 
     override fun <T : Any?> encodeSerializableElement(
-            descriptor: SerialDescriptor,
-            index: Int,
-            serializer: SerializationStrategy<T>,
-            value: T
+        descriptor: SerialDescriptor,
+        index: Int,
+        serializer: SerializationStrategy<T>,
+        value: T
     ) {
         encodeElement(descriptor, index)
         encodeTaggedObject(
-                descriptor.getTag(index),
-                value as Any,
-                descriptor.getElementAnnotations(index).firstOrNull() is Id,
-                unchecked(serializer)
+            descriptor.getTag(index),
+            value as Any,
+            descriptor.getElementAnnotations(index).firstOrNull() is Id,
+            unchecked(serializer)
         )
     }
 
     override fun <T : Any> encodeNullableSerializableElement(
-            descriptor: SerialDescriptor,
-            index: Int,
-            serializer: SerializationStrategy<T>,
-            value: T?
+        descriptor: SerialDescriptor,
+        index: Int,
+        serializer: SerializationStrategy<T>,
+        value: T?
     ) {
         encodeElement(descriptor, index)
         if (serializer is GeneratedSerializer)
             encodeTaggedObject(
-                    descriptor.getTag(index),
-                    value as Any,
-                    descriptor.getElementAnnotations(index).firstOrNull() is Id,
-                    unchecked(serializer))
+                descriptor.getTag(index),
+                value as Any,
+                descriptor.getElementAnnotations(index).firstOrNull() is Id,
+                unchecked(serializer)
+            )
         else
             encodeNullableSerializableValue(serializer, value)
     }
@@ -235,8 +235,8 @@ class XodusEncoder(
     }
 
     private fun popTag() =
-            if (tagStack.isNotEmpty())
-                tagStack.removeAt(tagStack.lastIndex)
-            else
-                throw SerializationException("No tag in stack for requested element")
+        if (tagStack.isNotEmpty())
+            tagStack.removeAt(tagStack.lastIndex)
+        else
+            throw SerializationException("No tag in stack for requested element")
 }
