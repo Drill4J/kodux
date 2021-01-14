@@ -45,6 +45,27 @@ data class ComplexObject(
 )
 
 @Serializable
+data class ComplexListNesting(
+    @Id val id: String,
+    val payload: PayloadWrapper = PayloadWrapper()
+)
+
+
+@Serializable
+data class PayloadWrapper(
+    val type: String = "undefined",
+    val payload: PayloadWithList = PayloadWithList()
+)
+
+@Serializable
+data class PayloadWithList(
+    val num: Int = 0,
+    val str: String = "",
+    val list: List<SetPayload> = emptyList()
+)
+
+
+@Serializable
 data class ObjectWithSetField(
     @Id val id: String,
     val set: MutableSet<SetPayload>

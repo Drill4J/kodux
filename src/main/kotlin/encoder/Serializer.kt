@@ -88,7 +88,10 @@ class XodusEncoder(
                 ent.setLink(tag, obj)
             }
             is Collection<*> -> value.filterNotNull().let { collection ->
-                val elementSerializer = collection.takeIf { it.any() }?.run { first()::class.serializerOrNull() }
+                val elementDescriptor = des.descriptor.getElementDescriptor(0)
+                val elementSerializer = elementDescriptor.takeIf { it.kind !is PrimitiveKind }?.run {
+                    Class.forName(serialName).kotlin.serializer()
+                }
                 if (elementSerializer is GeneratedSerializer) {
                     collection.forEach {
                         val obj = txn.newEntity(it::class.simpleName.toString())

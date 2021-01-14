@@ -91,6 +91,14 @@ class XodusTest {
     }
 
     @Test
+    fun `should store and retrieve an object with complex nesting`() = runBlocking {
+        val withDefaults = ComplexListNesting("some-id")
+        agentStore.store(withDefaults)
+        val all = agentStore.getAll<ComplexListNesting>()
+        assertEquals(listOf(withDefaults), all)
+    }
+
+    @Test
     fun `should find object with complex expressions`() = runBlocking {
         agentStore.store(complexObject)
         agentStore.store(complexObject.copy(id = "123", ch = 'w'))
