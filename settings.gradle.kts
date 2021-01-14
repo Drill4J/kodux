@@ -1,6 +1,8 @@
-@file:Suppress("UnstableApiUsage")
-
 rootProject.name = "kodux"
+
+val scriptUrl: String by extra
+apply(from = "$scriptUrl/maven-repo.settings.gradle.kts")
+
 pluginManagement {
     val kotlinVersion: String by settings
     val benchmarkVersion: String by settings
@@ -12,9 +14,7 @@ pluginManagement {
     }
 
     repositories {
-        gradlePluginPortal()
-        maven(url = "https://oss.jfrog.org/artifactory/list/oss-release-local")
-        maven(url = "https://dl.bintray.com/kotlin/kotlinx/")
+        maven("https://dl.bintray.com/kotlin/kotlinx")
     }
 }
 

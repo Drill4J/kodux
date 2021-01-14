@@ -1,19 +1,13 @@
-import kotlinx.benchmark.gradle.*
-import org.jetbrains.kotlin.allopen.gradle.*
-import org.jetbrains.kotlin.gradle.tasks.*
-
 plugins {
     kotlin("jvm")
     kotlin("plugin.serialization")
     kotlin("plugin.allopen")
     id("kotlinx.benchmark")
-    `maven-publish`
     idea
 }
 
 repositories {
     mavenLocal()
-    mavenCentral()
     jcenter()
     maven(url = "https://dl.bintray.com/kotlin/kotlinx")
 }
@@ -33,11 +27,11 @@ dependencies {
     testImplementation(kotlin("test-junit"))
 }
 
+kotlin {
+    target { compilations.all { kotlinOptions.jvmTarget = "1.8" } }
+}
 
-configure<AllOpenExtension> { annotation("org.openjdk.jmh.annotations.State") }
-
-tasks.withType<KotlinCompile> { kotlinOptions.jvmTarget = "1.8" }
-
+configure<org.jetbrains.kotlin.allopen.gradle.AllOpenExtension> { annotation("org.openjdk.jmh.annotations.State") }
 
 benchmark {
     configurations {
@@ -49,7 +43,7 @@ benchmark {
     }
     targets {
         register("main") {
-            this as JvmBenchmarkTarget
+            this as kotlinx.benchmark.gradle.JvmBenchmarkTarget
             jmhVersion = "1.21"
         }
     }
