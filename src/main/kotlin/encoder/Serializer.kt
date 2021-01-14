@@ -87,10 +87,10 @@ class XodusEncoder(
                 obj.setProperty(SIZE_PROPERTY_NAME, value.size)
                 ent.setLink(tag, obj)
             }
-            is Collection<*> -> {
-                val filterNotNull = value.filterNotNull()
-                if (filterNotNull.first()::class.serializer() is GeneratedSerializer) {
-                    filterNotNull.forEach {
+            is Collection<*> -> value.filterNotNull().let { collection ->
+                val elementSerializer = collection.takeIf { it.any() }?.run { first()::class.serializerOrNull() }
+                if (elementSerializer is GeneratedSerializer) {
+                    collection.forEach {
                         val obj = txn.newEntity(it::class.simpleName.toString())
                         val serializer: KSerializer<Any> = unchecked(it::class.serializer())
                         XodusEncoder(txn, obj).encodeSerializableValue(serializer, it)
@@ -98,8 +98,8 @@ class XodusEncoder(
                     }
                 } else {
                     val obj = txn.newEntity(ent::class.simpleName.toString() + "list")
-                    obj.setProperty(SIZE_PROPERTY_NAME, filterNotNull.size)
-                    filterNotNull.forEachIndexed { i, it ->
+                    obj.setProperty(SIZE_PROPERTY_NAME, collection.size)
+                    collection.forEachIndexed { i, it ->
                         obj.setProperty(i.toString(), it as Comparable<*>)
                     }
                     ent.setLink(tag, obj)

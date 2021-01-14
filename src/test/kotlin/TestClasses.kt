@@ -61,6 +61,19 @@ data class ObjectWithByteArray(
 }
 
 @Serializable
+data class ObjectWithDefaults(
+    @Id val id: String,
+    val payload: AllDefaultPayload = AllDefaultPayload()
+)
+
+@Serializable
+data class AllDefaultPayload(
+    val num: Int = 0,
+    val str: String = "",
+    val list: List<String> = emptyList()
+)
+
+@Serializable
 data class SetPayload(
     val id: String,
     val name: String

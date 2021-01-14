@@ -70,6 +70,14 @@ class XodusTest {
     }
 
     @Test
+    fun `should store and retrieve an object with all-default payload`() = runBlocking {
+        val withDefaults = ObjectWithDefaults("some-id")
+        agentStore.store(withDefaults)
+        val all = agentStore.getAll<ObjectWithDefaults>()
+        assertEquals(listOf(withDefaults), all)
+    }
+
+    @Test
     fun `should store and retrieve a complex object`() = runBlocking {
         agentStore.store(complexObject)
         val all = agentStore.getAll<ComplexObject>()

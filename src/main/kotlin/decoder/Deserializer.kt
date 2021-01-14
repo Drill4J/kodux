@@ -88,21 +88,19 @@ class XodusDecoder(
             is AbstractCollectionSerializer<*, *, *> -> {
                 val elementDescriptor = des.descriptor.getElementDescriptor(0)
                 val serialKind = elementDescriptor.kind
-                val objects =
-                    if (serialKind !is PrimitiveKind) {
+                val objects: Iterable<Any> = if (serialKind !is PrimitiveKind) {
                         val deserializer = Class.forName(elementDescriptor.serialName).kotlin.serializer()
-                        ent.getLinks(tag).map {
-                            XodusDecoder(txn, it).decodeSerializableValue(deserializer)
-                        }.asIterable()
+                        ent.getLinks(tag).mapTo(des.descriptor.outputCollection()) { entity ->
+                            XodusDecoder(txn, entity).decodeSerializableValue(deserializer)
+                        }
                     } else {
                         val link = ent.getLink(tag)!!
                         val size = link.getProperty(SIZE_PROPERTY_NAME) as Int
-                        val map = (0 until size).map {
+                        (0 until size).mapTo(des.descriptor.outputCollection()) {
                             link.getProperty(it.toString()) as Comparable<*>
                         }
-                        map
                     }
-                val list = parseListBasedObject(des, objects)
+                val list = parseCollection(des, objects)
                 unchecked(list)
             }
             else -> when {
@@ -128,15 +126,18 @@ class XodusDecoder(
         }
     }
 
-    private fun parseListBasedObject(des: AbstractCollectionSerializer<*, *, *>, objects: Iterable<Any?>): Any {
-        val elementSerializer = objects.filterNotNull().first().let { it::class.serializer() }
-        return when (des::class) {
-            ListSerializer(elementSerializer)::class -> objects.toMutableList()
-            SetSerializer(elementSerializer)::class -> objects.toMutableSet()
-            else -> TODO("not implemented yet")
-        }
+    private fun parseCollection(
+        des: AbstractCollectionSerializer<*, *, *>,
+        objects: Iterable<Any>
+    ): Any = run {
+        objects.firstOrNull()?.let { it::class.serializer() }?.let { serializer ->
+            when (des::class) {
+                ListSerializer(serializer)::class,
+                SetSerializer(serializer)::class -> objects
+                else -> TODO("not implemented yet")
+            }
+        } ?: objects
     }
-
 
     override fun decodeNotNullMark(): Boolean = decodeTaggedNotNullMark(currentTag)
     override fun decodeNull(): Nothing? = null
@@ -237,4 +238,8 @@ class XodusDecoder(
     override fun decodeElementIndex(descriptor: SerialDescriptor): Int = TODO("not implemented yet")
 
     override fun endStructure(descriptor: SerialDescriptor) = Unit
+}
+
+private fun <T> SerialDescriptor.outputCollection(): MutableCollection<T> = kotlin.run {
+    if (HashSet::class.simpleName!! in serialName) mutableSetOf() else mutableListOf()
 }
