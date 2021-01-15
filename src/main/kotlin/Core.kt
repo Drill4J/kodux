@@ -13,22 +13,25 @@ inline fun <reified T : Any> KoduxTransaction.store(any: T) {
         deleteEntityRecursively(this)
     }
     val obj = this.newEntity(any::class.simpleName.toString())
-    XodusEncoder(this, obj).encodeSerializableValue(T::class.serializer(), any)
+    val classLoader = T::class.java.classLoader
+    XodusEncoder(this, classLoader, obj).encodeSerializableValue(T::class.serializer(), any)
 }
 
 inline fun <reified T : Any> KoduxTransaction.getAll(): List<T> {
     val serializer = T::class.serializer()
     val idName = idName(serializer.descriptor)
+    val classLoader = T::class.java.classLoader
     return this.getAll(T::class.simpleName!!).map {
-        XodusDecoder(this, it, idName).decodeSerializableValue(serializer)
+        XodusDecoder(this, classLoader, it, idName).decodeSerializableValue(serializer)
     }
 }
 
 inline fun <reified T : Any> KoduxTransaction.findById(id: Any): T? {
     val serializer = T::class.serializer()
     val idName = idName(serializer.descriptor)!!
+    val classLoader = T::class.java.classLoader
     return findById<T>(idName, id)?.let {
-        XodusDecoder(this, it, idName).decodeSerializableValue(serializer)
+        XodusDecoder(this, classLoader, it, idName).decodeSerializableValue(serializer)
     }
 }
 
@@ -90,5 +93,6 @@ inline fun <reified T : Any> KoduxTransaction.computeWithExpression(
     val entityIterable = expr.process(this, T::class)
     val serializer = T::class.serializer()
     val idName = idName(serializer.descriptor)
-    entityIterable.map { XodusDecoder(this, it, idName).decodeSerializableValue(serializer) }
+    val classLoader = T::class.java.classLoader
+    entityIterable.map { XodusDecoder(this, classLoader, it, idName).decodeSerializableValue(serializer) }
 }

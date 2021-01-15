@@ -11,6 +11,7 @@ import kotlinx.serialization.modules.*
 
 class XodusDecoder(
     private val txn: StoreTransaction,
+    private val classLoader: ClassLoader,
     private val ent: Entity,
     private val idName: String? = null
 ) : Decoder, CompositeDecoder {
@@ -89,9 +90,9 @@ class XodusDecoder(
                 val elementDescriptor = des.descriptor.getElementDescriptor(0)
                 val serialKind = elementDescriptor.kind
                 val objects: Iterable<Any> = if (serialKind !is PrimitiveKind) {
-                        val deserializer = Class.forName(elementDescriptor.serialName).kotlin.serializer()
+                        val deserializer = classLoader.loadClass(elementDescriptor.serialName).kotlin.serializer()
                         ent.getLinks(tag).mapTo(des.descriptor.outputCollection()) { entity ->
-                            XodusDecoder(txn, entity).decodeSerializableValue(deserializer)
+                            XodusDecoder(txn, classLoader, entity).decodeSerializableValue(deserializer)
                         }
                     } else {
                         val link = ent.getLink(tag)!!
@@ -108,6 +109,7 @@ class XodusDecoder(
                 des.descriptor.kind == SerialKind.ENUM -> decodeSerializableValue(des)
                 else -> XodusDecoder(
                     txn = txn,
+                    classLoader = classLoader,
                     ent = checkNotNull(ent.getLink(tag)) { "should be not null $tag" }
                 ).decodeSerializableValue(des)
             }
@@ -116,13 +118,13 @@ class XodusDecoder(
 
     private fun parseElement(targetSerializer: KSerializer<out Any?>, link: Entity, propertyName: String): Any? {
         if (targetSerializer.descriptor.kind == SerialKind.ENUM) {
-            return Class.forName(targetSerializer.descriptor.serialName).enumConstants[link.getProperty(propertyName) as Int]
+            return classLoader.loadClass(targetSerializer.descriptor.serialName).enumConstants[link.getProperty(propertyName) as Int]
         }
         return when (targetSerializer) {
             !is GeneratedSerializer<*> -> {
                 link.getProperty(propertyName) ?: restoreObject(targetSerializer, link, propertyName)
             }
-            else -> XodusDecoder(txn, link.getLink(propertyName)!!).decodeSerializableValue(targetSerializer)
+            else -> XodusDecoder(txn, classLoader, link.getLink(propertyName)!!).decodeSerializableValue(targetSerializer)
         }
     }
 

@@ -10,6 +10,7 @@ import kotlinx.serialization.modules.*
 
 class XodusEncoder(
     private val txn: StoreTransaction,
+    private val classLoader: ClassLoader,
     private val ent: Entity
 ) : Encoder, CompositeEncoder {
     private fun SerialDescriptor.getTag(index: Int) = this.getElementName(index)
@@ -90,13 +91,13 @@ class XodusEncoder(
             is Collection<*> -> value.filterNotNull().let { collection ->
                 val elementDescriptor = des.descriptor.getElementDescriptor(0)
                 val elementSerializer = elementDescriptor.takeIf { it.kind !is PrimitiveKind }?.run {
-                    Class.forName(serialName).kotlin.serializer()
+                    classLoader.loadClass(serialName).kotlin.serializer()
                 }
                 if (elementSerializer is GeneratedSerializer) {
                     collection.forEach {
                         val obj = txn.newEntity(it::class.simpleName.toString())
                         val serializer: KSerializer<Any> = unchecked(it::class.serializer())
-                        XodusEncoder(txn, obj).encodeSerializableValue(serializer, it)
+                        XodusEncoder(txn, classLoader, obj).encodeSerializableValue(serializer, it)
                         ent.addLink(tag, obj)
                     }
                 } else {
@@ -119,7 +120,7 @@ class XodusEncoder(
                     @Suppress("UNCHECKED_CAST")
                     val strategy = value::class.serializer() as KSerializer<Any>
                     val obj = txn.newEntity(value::class.simpleName.toString())
-                    XodusEncoder(txn, obj).encodeSerializableValue(strategy, value)
+                    XodusEncoder(txn, classLoader, obj).encodeSerializableValue(strategy, value)
                     ent.setLink(tag, obj)
                 }
             }
@@ -141,7 +142,7 @@ class XodusEncoder(
             }
         } else {
             val mapKey = txn.newEntity(tag)
-            XodusEncoder(txn, mapKey).encodeSerializableValue(unchecked(targetSerializer), property!!)
+            XodusEncoder(txn, classLoader, mapKey).encodeSerializableValue(unchecked(targetSerializer), property!!)
             obj.setLink(keyName, mapKey)
         }
     }
