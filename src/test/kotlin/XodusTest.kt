@@ -59,18 +59,19 @@ class XodusTest {
     @Test
     fun `should correctly update an object with composite id`() = runBlocking {
         val id = CompositeId("one", 1)
-        val data = CompositeData(id, "data")
-        agentStore.store(data)
-        val all = agentStore.getAll<CompositeData>()
-        assertEquals(1, all.count())
-        val foundById = agentStore.findById<CompositeData>(CompositeId("one", 1))
-        assertEquals(data, foundById)
-        val data2 = CompositeData(id, "data2")
-        agentStore.store(data2)
-        assertEquals(1, agentStore.getAll<CompositeData>().count())
-        @Suppress("RemoveExplicitTypeArguments")
-        assertEquals(data2, agentStore.findById<CompositeData>(id))
+        updateObject(CompositeData(id, "data"), id)
+        updateObject(CompositeData(id, "data2"), id)
     }
+
+    @Test
+    fun `should correctly create,update,delete an object with id and extra one annotation`() = runBlocking {
+        val id = CompositeId("one", 1)
+        updateObject(ObjectWithTwoAnnotation(id, 100), id)
+        updateObject(ObjectWithTwoAnnotation(id, 2000), id)
+        agentStore.deleteById<ObjectWithTwoAnnotation>(id)
+        assertEquals(0, agentStore.getAll<ObjectWithTwoAnnotation>().count())
+    }
+
 
     @Test
     fun `should store and retrieve a simple object`() = runBlocking {
@@ -117,9 +118,9 @@ class XodusTest {
     fun `should find object with complex expressions`() = runBlocking {
         agentStore.store(complexObject)
         agentStore.store(complexObject.copy(id = "123", ch = 'w'))
-
-        val all =
-            agentStore.findBy<ComplexObject> { (ComplexObject::enumExample eq EnumExample.SECOND) and (ComplexObject::id eq "123") and (ComplexObject::id eq "str") }
+        val all = agentStore.findBy<ComplexObject> {
+            (ComplexObject::enumExample eq EnumExample.SECOND) and (ComplexObject::id eq "123") and (ComplexObject::id eq "str")
+        }
         assertTrue(all.isNotEmpty())
     }
 
@@ -284,6 +285,12 @@ class XodusTest {
         assertNull(agentStore.findById<StoreMe>("id1"))
         assertNull(agentStore.findById<StoreMe>("id2"))
         assertNotNull(agentStore.findById<MapField>("id3") != null)
+    }
+
+    private suspend inline fun <reified T : Any> updateObject(data: T, id: Any, objectCount: Int = 1) {
+        agentStore.store(data)
+        assertEquals(objectCount, agentStore.getAll<T>().count())
+        assertEquals(data, agentStore.findById<T>(id))
     }
 
 }

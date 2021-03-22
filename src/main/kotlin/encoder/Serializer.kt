@@ -224,7 +224,7 @@ class XodusEncoder(
         encodeTaggedObject(
             descriptor.getTag(index),
             value as Any,
-            descriptor.getElementAnnotations(index).firstOrNull() is Id,
+            descriptor.getElementAnnotations(index).any { it is Id },
             unchecked(serializer)
         )
     }
@@ -240,7 +240,7 @@ class XodusEncoder(
             encodeTaggedObject(
                 descriptor.getTag(index),
                 value as Any,
-                descriptor.getElementAnnotations(index).firstOrNull() is Id,
+                descriptor.getElementAnnotations(index).any { it is Id },
                 unchecked(serializer)
             )
         else

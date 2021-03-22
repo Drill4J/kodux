@@ -17,6 +17,9 @@ package com.epam.kodux
 
 import kotlinx.serialization.*
 
+@SerialInfo
+@Target(AnnotationTarget.PROPERTY, AnnotationTarget.CLASS)
+annotation class TestAnnotation
 
 enum class EnumExample {
     FIRST,
@@ -168,4 +171,11 @@ data class ObjectWithReferenceElementsMap(
 data class ObjectWithReferenceElementsMapMixed(
     @Id val id: Int,
     val st: Map<String, TempObject>
+)
+
+@Serializable
+data class ObjectWithTwoAnnotation(
+    @TestAnnotation
+    @Id val id: CompositeId,
+    val size: Int
 )
