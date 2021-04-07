@@ -23,12 +23,18 @@ import kotlinx.serialization.descriptors.*
 import kotlinx.serialization.encoding.*
 import kotlinx.serialization.internal.*
 import kotlinx.serialization.modules.*
+import mu.*
+import org.apache.commons.compress.compressors.zstandard.*
+import org.nustaq.serialization.*
+import java.io.*
+
+private val logger = KotlinLogging.logger { }
 
 class XodusDecoder(
     private val txn: StoreTransaction,
     private val classLoader: ClassLoader,
     private val ent: Entity,
-    private val idName: String? = null
+    private val idName: String? = null,
 ) : Decoder, CompositeDecoder {
     override val serializersModule: SerializersModule = EmptySerializersModule
 
@@ -80,46 +86,85 @@ class XodusDecoder(
         return ent.getProperty(tag) as String
     }
 
-    private fun <T> decodeTaggedObject(tag: String, des: DeserializationStrategy<T>): T {
-        return restoreObject(des, ent, tag)
+    private fun <T> decodeTaggedObject(
+        tag: String,
+        des: DeserializationStrategy<T>,
+        deserializationSettings: SerializationSettings?,
+    ): T {
+        return restoreObject(des, ent, tag, deserializationSettings)
     }
 
-    private fun <T> restoreObject(des: DeserializationStrategy<T>, ent: Entity, tag: String): T {
-        return when (des) {
-            ByteArraySerializer() -> {
-                @Suppress("UNCHECKED_CAST")
-                ent.getBlob(tag)?.readBytes() as T
-            }
+    private fun <T> restoreObject(
+        des: DeserializationStrategy<T>,
+        ent: Entity,
+        tag: String,
+        deserializationSettings: SerializationSettings? = null,
+    ): T = if (deserializationSettings != null) {
+        streamDeserialization(deserializationSettings, ent, tag)
+    } else {
+        kotlinxDeserialization(des, ent, tag)
+    }
 
-            is MapLikeSerializer<*, *, *, *> -> {
-                val link = checkNotNull(ent.getLink(tag)) { "$tag nullable collections are not supported yet" }
-                val size = link.getProperty(SIZE_PROPERTY_NAME) as Int
-                val associateWith = (0 until size).associate {
-                    val k = parseElement(des.keySerializer, link, "k$it")
-                    val v = parseElement(des.valueSerializer, link, "v$it")
-                    k to v
+
+    private fun <T> streamDeserialization(
+        deserializationSettings: SerializationSettings,
+        ent: Entity,
+        tag: String,
+    ) = when (deserializationSettings.serializationType) {
+        SerializationType.FST -> {
+            val conf = FSTConfiguration.getDefaultConfiguration()
+            conf.classLoader = classLoader
+            val blob = ent.getProperty(tag) as String
+            when (deserializationSettings.compressType) {
+                CompressType.ZSTD -> ZstdCompressorInputStream(File(blob).inputStream())
+                else -> File(blob).inputStream()
+            }.use {
+                logger.trace { "Reading entity: ${ent.type} from file: $blob" }
+                @Suppress("UNCHECKED_CAST")
+                conf.decodeFromStream(it) as T
+            }
+        }
+    }
+
+    private fun <T> kotlinxDeserialization(
+        des: DeserializationStrategy<T>,
+        ent: Entity,
+        tag: String,
+    ) = when (des) {
+        ByteArraySerializer() -> {
+            @Suppress("UNCHECKED_CAST")
+            ent.getBlob(tag)?.readBytes() as T
+        }
+        is MapLikeSerializer<*, *, *, *> -> {
+            val link = checkNotNull(ent.getLink(tag)) { "$tag nullable collections are not supported yet" }
+            val size = link.getProperty(SIZE_PROPERTY_NAME) as Int
+            val associateWith = (0 until size).associate {
+                val k = parseElement(des.keySerializer, link, "k$it")
+                val v = parseElement(des.valueSerializer, link, "v$it")
+                k to v
+            }
+            unchecked(associateWith)
+        }
+        is AbstractCollectionSerializer<*, *, *> -> {
+            val elementDescriptor = des.descriptor.getElementDescriptor(0)
+            val serialKind = elementDescriptor.kind
+            val objects: Iterable<Any> = if (serialKind !is PrimitiveKind) {
+                val deserializer = classLoader.loadClass(elementDescriptor.serialName).kotlin.serializer()
+                ent.getLinks(tag).mapTo(des.descriptor.outputCollection()) { entity ->
+                    XodusDecoder(txn, classLoader, entity).decodeSerializableValue(deserializer)
                 }
-                unchecked(associateWith)
+            } else {
+                val link = ent.getLink(tag)!!
+                val size = link.getProperty(SIZE_PROPERTY_NAME) as Int
+                (0 until size).mapTo(des.descriptor.outputCollection()) {
+                    link.getProperty(it.toString()) as Comparable<*>
+                }
             }
-            is AbstractCollectionSerializer<*, *, *> -> {
-                val elementDescriptor = des.descriptor.getElementDescriptor(0)
-                val serialKind = elementDescriptor.kind
-                val objects: Iterable<Any> = if (serialKind !is PrimitiveKind) {
-                        val deserializer = classLoader.loadClass(elementDescriptor.serialName).kotlin.serializer()
-                        ent.getLinks(tag).mapTo(des.descriptor.outputCollection()) { entity ->
-                            XodusDecoder(txn, classLoader, entity).decodeSerializableValue(deserializer)
-                        }
-                    } else {
-                        val link = ent.getLink(tag)!!
-                        val size = link.getProperty(SIZE_PROPERTY_NAME) as Int
-                        (0 until size).mapTo(des.descriptor.outputCollection()) {
-                            link.getProperty(it.toString()) as Comparable<*>
-                        }
-                    }
-                val list = parseCollection(des, objects)
-                unchecked(list)
-            }
-            else -> when {
+            val list = parseCollection(des, objects)
+            unchecked(list)
+        }
+        else ->
+            when {
                 tag == idName -> decodeTaggedString(tag).decodeId(des)
                 des.descriptor.kind == SerialKind.ENUM -> decodeSerializableValue(des)
                 else -> XodusDecoder(
@@ -128,29 +173,34 @@ class XodusDecoder(
                     ent = checkNotNull(ent.getLink(tag)) { "should be not null $tag" }
                 ).decodeSerializableValue(des)
             }
-        }
+
     }
 
     private fun parseElement(targetSerializer: KSerializer<out Any?>, link: Entity, propertyName: String): Any? {
         if (targetSerializer.descriptor.kind == SerialKind.ENUM) {
-            return classLoader.loadClass(targetSerializer.descriptor.serialName).enumConstants[link.getProperty(propertyName) as Int]
+            return classLoader.loadClass(targetSerializer.descriptor.serialName).enumConstants[link.getProperty(
+                propertyName
+            ) as Int]
         }
         return when (targetSerializer) {
             !is GeneratedSerializer<*> -> {
                 link.getProperty(propertyName) ?: restoreObject(targetSerializer, link, propertyName)
             }
-            else -> XodusDecoder(txn, classLoader, link.getLink(propertyName)!!).decodeSerializableValue(targetSerializer)
+            else -> XodusDecoder(txn, classLoader, link.getLink(propertyName)!!).decodeSerializableValue(
+                targetSerializer
+            )
         }
     }
 
     private fun parseCollection(
         des: AbstractCollectionSerializer<*, *, *>,
-        objects: Iterable<Any>
+        objects: Iterable<Any>,
     ): Any = run {
         objects.firstOrNull()?.let { it::class.serializer() }?.let { serializer ->
             when (des::class) {
                 ListSerializer(serializer)::class,
-                SetSerializer(serializer)::class -> objects
+                SetSerializer(serializer)::class,
+                -> objects
                 else -> TODO("not implemented yet")
             }
         } ?: objects
@@ -185,7 +235,8 @@ class XodusDecoder(
     override fun decodeShortElement(descriptor: SerialDescriptor, index: Int): Short =
         decodeTaggedShort(descriptor.getTag(index))
 
-    override fun decodeIntElement(descriptor: SerialDescriptor, index: Int): Int = decodeTaggedInt(descriptor.getTag(index))
+    override fun decodeIntElement(descriptor: SerialDescriptor, index: Int): Int =
+        decodeTaggedInt(descriptor.getTag(index))
 
     override fun decodeLongElement(descriptor: SerialDescriptor, index: Int): Long =
         decodeTaggedLong(descriptor.getTag(index))
@@ -206,21 +257,29 @@ class XodusDecoder(
         descriptor: SerialDescriptor,
         index: Int,
         deserializer: DeserializationStrategy<T>,
-        previousValue: T?
+        previousValue: T?,
     ): T =
         tagBlock(descriptor.getTag(index)) {
-            decodeTaggedObject(descriptor.getTag(index), deserializer)
+            decodeTaggedObject(
+                descriptor.getTag(index),
+                deserializer,
+                getSerializationSettings(descriptor.getElementAnnotations(index))
+            )
         }
 
     override fun <T : Any> decodeNullableSerializableElement(
         descriptor: SerialDescriptor,
         index: Int,
         deserializer: DeserializationStrategy<T?>,
-        previousValue: T?
+        previousValue: T?,
     ): T? =
         tagBlock(descriptor.getTag(index)) {
             if (deserializer is GeneratedSerializer)
-                decodeTaggedObject(descriptor.getTag(index), deserializer)
+                decodeTaggedObject(
+                    descriptor.getTag(index),
+                    deserializer,
+                    getSerializationSettings(descriptor.getElementAnnotations(index))
+                )
             else
                 decodeNullableSerializableValue(deserializer)
 

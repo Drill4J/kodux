@@ -31,9 +31,20 @@ inline fun <reified T : Any> idPair(any: T): Pair<String?, Any?> {
     return idName to (T::class.memberProperties.find { it.name == idName })?.getter?.invoke(any)
 }
 
-fun idName(desc: SerialDescriptor): String? = (0 until desc.elementsCount).firstOrNull { inx ->
-    desc.getElementAnnotations(inx).any { it is Id }
+fun idName(desc: SerialDescriptor): String? = (0 until desc.elementsCount).firstOrNull { index ->
+    desc.getElementAnnotations(index).any { it is Id }
 }?.let { idIndex -> desc.getElementName(idIndex) }
+
+fun fieldsAnnotatedByStreamSerialization(desc: SerialDescriptor): List<String> = ArrayList<String>().apply {
+    (0 until desc.elementsCount).forEach { index ->
+        val list = fieldsAnnotatedByStreamSerialization(desc.getElementDescriptor(index))
+        desc.getElementAnnotations(index).forEach {
+            if (it is StreamSerialization)
+                add(desc.getElementName(index))
+        }
+        addAll(list)
+    }
+}
 
 fun Any.encodeId(): String = this as? String ?: json.encodeToString(unchecked(this::class.serializer()), this)
 

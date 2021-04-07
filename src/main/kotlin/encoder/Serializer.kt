@@ -22,11 +22,19 @@ import kotlinx.serialization.descriptors.*
 import kotlinx.serialization.encoding.*
 import kotlinx.serialization.internal.*
 import kotlinx.serialization.modules.*
+import mu.*
+import org.apache.commons.compress.compressors.zstandard.*
+import org.nustaq.serialization.*
+import java.io.*
+import java.nio.file.*
+import java.util.*
+
+private val logger = KotlinLogging.logger { }
 
 class XodusEncoder(
     private val txn: StoreTransaction,
     private val classLoader: ClassLoader,
-    private val ent: Entity
+    private val ent: Entity,
 ) : Encoder, CompositeEncoder {
     private fun SerialDescriptor.getTag(index: Int) = this.getElementName(index)
 
@@ -76,84 +84,128 @@ class XodusEncoder(
     private fun encodeTaggedObject(
         tag: String,
         value: Any,
-        @Suppress("UNUSED_PARAMETER") isId: Boolean,
-        des: SerializationStrategy<Any>
+        isId: Boolean,
+        serializationSettings: SerializationSettings?,
+        des: SerializationStrategy<Any>,
     ) {
-        storeObject(des, isId, value, ent, tag)
+        storeObject(des, isId, serializationSettings, value, ent, tag)
     }
 
     private fun storeObject(
         des: SerializationStrategy<*>,
         isId: Boolean,
+        serializationSettings: SerializationSettings?,
         value: Any,
         ent: Entity,
-        tag: String
+        tag: String,
     ) {
-        when (value) {
-            is ByteArray -> {
-                ent.setBlob(tag, value.inputStream())
+        if (serializationSettings != null) {
+            streamSerialization(serializationSettings, ent, value, tag)
+        } else {
+            kotlinxSerialization(value, ent, tag, des, isId)
+        }
+    }
+
+    private fun kotlinxSerialization(
+        value: Any,
+        ent: Entity,
+        tag: String,
+        des: SerializationStrategy<*>,
+        isId: Boolean,
+    ) = when (value) {
+        is ByteArray -> {
+            ent.setBlob(tag, value.inputStream())
+        }
+        is Map<*, *> -> {
+            val mapLikeSerializer = des as MapLikeSerializer<*, *, *, *>
+            val obj = txn.newEntity("${ent.type}:$tag:map")
+            value.entries.mapIndexed { index, (key, vl) ->
+                parseElement(mapLikeSerializer.keySerializer, key, obj, "k$index", "${ent.type}:$tag:map:key")
+                parseElement(
+                    mapLikeSerializer.valueSerializer,
+                    vl,
+                    obj,
+                    "v$index",
+                    "${ent.type}:$tag:map:value"
+                )
             }
-            is Map<*, *> -> {
-                val mapLikeSerializer = des as MapLikeSerializer<*, *, *, *>
-                val obj = txn.newEntity("${ent.type}:$tag:map")
-                value.entries.mapIndexed { index, (key, vl) ->
-                    parseElement(mapLikeSerializer.keySerializer, key, obj, "k$index", "${ent.type}:$tag:map:key")
-                    parseElement(mapLikeSerializer.valueSerializer, vl, obj, "v$index", "${ent.type}:$tag:map:value")
+            obj.setProperty(SIZE_PROPERTY_NAME, value.size)
+            ent.setLink(tag, obj)
+        }
+        is Collection<*> -> value.filterNotNull().let { collection ->
+            val elementDescriptor = des.descriptor.getElementDescriptor(0)
+            val elementSerializer = elementDescriptor.takeIf { it.kind !is PrimitiveKind }?.run {
+                classLoader.loadClass(serialName).kotlin.serializer()
+            }
+            if (elementSerializer is GeneratedSerializer) {
+                collection.forEach {
+                    val obj = txn.newEntity(it::class.simpleName.toString())
+                    val serializer: KSerializer<Any> = unchecked(it::class.serializer())
+                    XodusEncoder(txn, classLoader, obj).encodeSerializableValue(serializer, it)
+                    ent.addLink(tag, obj)
                 }
-                obj.setProperty(SIZE_PROPERTY_NAME, value.size)
+            } else {
+                val obj = txn.newEntity(ent::class.simpleName.toString() + "list")
+                obj.setProperty(SIZE_PROPERTY_NAME, collection.size)
+                collection.forEachIndexed { i, it ->
+                    obj.setProperty(i.toString(), it as Comparable<*>)
+                }
                 ent.setLink(tag, obj)
             }
-            is Collection<*> -> value.filterNotNull().let { collection ->
-                val elementDescriptor = des.descriptor.getElementDescriptor(0)
-                val elementSerializer = elementDescriptor.takeIf { it.kind !is PrimitiveKind }?.run {
-                    classLoader.loadClass(serialName).kotlin.serializer()
-                }
-                if (elementSerializer is GeneratedSerializer) {
-                    collection.forEach {
-                        val obj = txn.newEntity(it::class.simpleName.toString())
-                        val serializer: KSerializer<Any> = unchecked(it::class.serializer())
-                        XodusEncoder(txn, classLoader, obj).encodeSerializableValue(serializer, it)
-                        ent.addLink(tag, obj)
-                    }
-                } else {
-                    val obj = txn.newEntity(ent::class.simpleName.toString() + "list")
-                    obj.setProperty(SIZE_PROPERTY_NAME, collection.size)
-                    collection.forEachIndexed { i, it ->
-                        obj.setProperty(i.toString(), it as Comparable<*>)
-                    }
-                    ent.setLink(tag, obj)
-                }
-            }
-            is Enum<*> -> {
-                ent.setProperty(tag, value.ordinal)
-            }
+        }
+        is Enum<*> -> {
+            ent.setProperty(tag, value.ordinal)
+        }
 
-            else -> {
-                if (isId) {
-                    ent.setProperty(tag, value.encodeId())
-                } else {
-                    @Suppress("UNCHECKED_CAST")
-                    val strategy = value::class.serializer() as KSerializer<Any>
-                    val obj = txn.newEntity(value::class.simpleName.toString())
-                    XodusEncoder(txn, classLoader, obj).encodeSerializableValue(strategy, value)
-                    ent.setLink(tag, obj)
-                }
+        else -> {
+            if (isId) {
+                ent.setProperty(tag, value.encodeId())
+            } else {
+                @Suppress("UNCHECKED_CAST")
+                val strategy = value::class.serializer() as KSerializer<Any>
+                val obj = txn.newEntity(value::class.simpleName.toString())
+                XodusEncoder(txn, classLoader, obj).encodeSerializableValue(strategy, value)
+                ent.setLink(tag, obj)
             }
         }
     }
+
+
+    private fun streamSerialization(
+        serializationSerializationSettings: SerializationSettings,
+        ent: Entity,
+        value: Any,
+        tag: String,
+    ) = when (serializationSerializationSettings.serializationType) {
+        SerializationType.FST -> {
+            val conf = FSTConfiguration.getDefaultConfiguration()
+            val path = "${ent.store.location}\\${ent.type.replace(":", "\\")}"
+            Files.createDirectories(Paths.get(path))
+            val file = File(path, "${UUID.randomUUID()}.bin")
+            when (serializationSerializationSettings.compressType) {
+                CompressType.ZSTD -> ZstdCompressorOutputStream(file.outputStream())
+                else -> file.outputStream()
+            }.use {
+                logger.trace { "Saving entity: ${ent.type} to file: $path" }
+                conf.encodeToStream(it, value)
+                ent.setProperty(tag, file.absolutePath)
+            }
+        }
+    }
+
 
     private fun parseElement(
         targetSerializer: KSerializer<out Any?>,
         property: Any?,
         obj: Entity,
         keyName: String,
-        tag: String
+        tag: String,
     ) {
         if (targetSerializer !is GeneratedSerializer<*>) {
             when (property) {
                 is Enum<*> -> obj.setProperty(keyName, property.ordinal)
                 is Comparable<*> -> obj.setProperty(keyName, property)
-                else -> storeObject(unchecked(targetSerializer), false, property!!, obj, keyName)
+                else -> storeObject(unchecked(targetSerializer), false, null, property!!, obj, keyName)
             }
         } else {
             val mapKey = txn.newEntity(tag)
@@ -218,13 +270,14 @@ class XodusEncoder(
         descriptor: SerialDescriptor,
         index: Int,
         serializer: SerializationStrategy<T>,
-        value: T
+        value: T,
     ) {
         encodeElement(descriptor, index)
         encodeTaggedObject(
             descriptor.getTag(index),
             value as Any,
             descriptor.getElementAnnotations(index).any { it is Id },
+            getSerializationSettings(descriptor.getElementAnnotations(index)),
             unchecked(serializer)
         )
     }
@@ -233,7 +286,7 @@ class XodusEncoder(
         descriptor: SerialDescriptor,
         index: Int,
         serializer: SerializationStrategy<T>,
-        value: T?
+        value: T?,
     ) {
         encodeElement(descriptor, index)
         if (serializer is GeneratedSerializer)
@@ -241,6 +294,7 @@ class XodusEncoder(
                 descriptor.getTag(index),
                 value as Any,
                 descriptor.getElementAnnotations(index).any { it is Id },
+                getSerializationSettings(descriptor.getElementAnnotations(index)),
                 unchecked(serializer)
             )
         else

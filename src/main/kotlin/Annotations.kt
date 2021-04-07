@@ -20,3 +20,30 @@ import kotlinx.serialization.*
 @SerialInfo
 @Target(AnnotationTarget.PROPERTY, AnnotationTarget.CLASS)
 annotation class Id
+
+@SerialInfo
+@Target(AnnotationTarget.PROPERTY)
+annotation class StreamSerialization(
+    val serializationType: SerializationType,
+    val compressType: CompressType,
+)
+
+enum class SerializationType {
+    FST
+}
+
+enum class CompressType {
+    NONE, ZSTD
+}
+
+internal fun getSerializationSettings(
+    annotation: List<Annotation>,
+) = annotation.firstOrNull { it is StreamSerialization }?.let {
+    val customSerialization = it as StreamSerialization
+    SerializationSettings(customSerialization.serializationType, customSerialization.compressType)
+}
+
+internal class SerializationSettings(
+    val serializationType: SerializationType,
+    val compressType: CompressType,
+)

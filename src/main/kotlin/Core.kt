@@ -19,13 +19,16 @@ import com.epam.kodux.decoder.*
 import com.epam.kodux.encoder.*
 import jetbrains.exodus.entitystore.*
 import kotlinx.serialization.*
+import mu.*
+import java.nio.file.*
 
+private val logger = KotlinLogging.logger { }
 
 typealias KoduxTransaction = StoreTransaction
 
 inline fun <reified T : Any> KoduxTransaction.store(any: T) {
     this.findEntity(any)?.apply {
-        deleteEntityRecursively(this)
+        deleteEntityRecursively(this, fieldsAnnotatedByStreamSerialization(T::class.serializer().descriptor))
     }
     val obj = this.newEntity(any::class.simpleName.toString())
     val classLoader = T::class.java.classLoader
@@ -51,7 +54,7 @@ inline fun <reified T : Any> KoduxTransaction.findById(id: Any): T? {
 }
 
 inline fun <reified T : Any> KoduxTransaction.findBy(
-    noinline expression: Expression<T>.() -> Unit
+    noinline expression: Expression<T>.() -> Unit,
 ): List<T> = run {
     val serializer = T::class.serializer()
     val idName = idName(serializer.descriptor)!!
@@ -59,33 +62,50 @@ inline fun <reified T : Any> KoduxTransaction.findBy(
 }
 
 inline fun <reified T : Any> KoduxTransaction.deleteAll() {
-    this.getAll(T::class.simpleName.toString()).forEach { deleteEntityRecursively(it) }
+    val annotatedFields = fieldsAnnotatedByStreamSerialization(T::class.serializer().descriptor)
+    this.getAll(T::class.simpleName.toString()).forEach { deleteEntityRecursively(it, annotatedFields) }
 }
 
 inline fun <reified T : Any> KoduxTransaction.deleteById(id: Any) {
     val serializer = T::class.serializer()
     val idName = idName(serializer.descriptor)!!
+    val annotatedFields = fieldsAnnotatedByStreamSerialization(serializer.descriptor)
     val encodedId = id.encodeId()
     find(T::class.simpleName!!, idName, encodedId).first?.let {
-        deleteEntityRecursively(it)
+        deleteEntityRecursively(it, annotatedFields)
     }
 }
 
 inline fun <reified T : Any> KoduxTransaction.deleteBy(expression: Expression<T>.() -> Unit) {
     val serializer = T::class.serializer()
     val idName = idName(serializer.descriptor)!!
+    val annotatedFields = fieldsAnnotatedByStreamSerialization(serializer.descriptor)
     val expr = Expression<T>(idName)
     expression(expr)
     val entityIterable = expr.process(this, T::class)
-    entityIterable.forEach { deleteEntityRecursively(it) }
+    entityIterable.forEach { deleteEntityRecursively(it, annotatedFields) }
 }
 
-fun deleteEntityRecursively(entity: Entity) {
+fun deleteEntityRecursively(entity: Entity, annotatedFields: Collection<String>) {
+    annotatedFields.deleteFiles(entity)
     entity.linkNames.forEach { lName ->
-        entity.getLinks(lName).forEach { subEnt -> deleteEntityRecursively(subEnt) }
+        entity.getLinks(lName).forEach { subEnt ->
+            deleteEntityRecursively(subEnt, annotatedFields)
+        }
         entity.deleteLinks(lName)
     }
     entity.delete()
+
+}
+
+private fun Collection<String>.deleteFiles(entity: Entity) = forEach { name ->
+    runCatching {
+        (entity.getProperty(name) as? String)?.let {
+            Files.delete(Paths.get(it))
+        }
+    }.onFailure {
+        logger.error(it) { "Couldn't delete file for ${entity.type} Reason: ${it.message}" }
+    }
 }
 
 
@@ -98,11 +118,11 @@ inline fun <reified T : Any> KoduxTransaction.findEntity(any: T): Entity? {
 
 inline fun <reified T : Any> KoduxTransaction.findById(
     idName: String,
-    id: Any
+    id: Any,
 ): Entity? = find(T::class.simpleName!!, idName, id.encodeId()).first
 
 inline fun <reified T : Any> KoduxTransaction.computeWithExpression(
-    noinline expression: Expression<T>.() -> Unit, expr: Expression<T>
+    noinline expression: Expression<T>.() -> Unit, expr: Expression<T>,
 ): List<T> = run {
     expression(expr)
     val entityIterable = expr.process(this, T::class)

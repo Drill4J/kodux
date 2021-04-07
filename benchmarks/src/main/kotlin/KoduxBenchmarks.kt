@@ -49,7 +49,7 @@ class KoduxBenchmarks {
         val any = Xs("x", 1)
         mstb().apply {
             this.findEntity(any)?.apply {
-                deleteEntityRecursively(this)
+                deleteEntityRecursively(this, emptyList())
             }
             val obj = this.newEntity(any::class.simpleName.toString())
             XodusEncoder(this, any::class.java.classLoader, obj).encodeSerializableValue(Xs.serializer(), any)
