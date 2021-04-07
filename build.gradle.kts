@@ -20,11 +20,17 @@ repositories {
 val coroutinesVersion: String by project
 val serializationVersion: String by project
 val xodusVersion: String by project
+val zstVersion : String by project
+val apacheCompressVersion: String by project
+val fstVersion: String by project
 
 dependencies {
     implementation(kotlin("stdlib-jdk8"))
     implementation(kotlin("reflect"))
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:$coroutinesVersion")
+    implementation("de.ruedigermoeller:fst:$fstVersion")
+    implementation("org.apache.commons:commons-compress:$apacheCompressVersion")
+    implementation("com.github.luben:zstd-jni:$zstVersion")
     implementation("org.jetbrains.xodus:xodus-entity-store:$xodusVersion")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:$serializationVersion")
     testImplementation(kotlin("test-junit"))
