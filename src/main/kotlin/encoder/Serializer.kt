@@ -25,6 +25,7 @@ import kotlinx.serialization.internal.*
 import kotlinx.serialization.modules.*
 import mu.*
 import org.apache.commons.compress.compressors.zstandard.*
+import org.nustaq.serialization.*
 import java.io.*
 import java.nio.file.*
 import java.util.*
@@ -170,24 +171,16 @@ class XodusEncoder(
         }
     }
 
-
-    private fun streamSerialization(
-        serializationSerializationSettings: SerializationSettings,
-        ent: Entity,
-        value: Any,
-        tag: String,
-    ) = when (serializationSerializationSettings.serializationType) {
-        SerializationType.FST -> {
-            val path = "${ent.store.location}\\${ent.type.replace(":", "\\")}"
-            Files.createDirectories(Paths.get(path))
-            val file = File(path, "${UUID.randomUUID()}.bin")
-            when (serializationSerializationSettings.compressType) {
-                CompressType.ZSTD -> ZstdCompressorOutputStream(file.outputStream())
-                else -> file.outputStream()
-            }.use {
-                logger.trace { "Saving entity: ${ent.type} to file: $path" }
-                fst.encodeToStream(it, value)
-                ent.setProperty(tag, file.absolutePath)
+            else -> {
+                if (isId) {
+                    ent.setProperty(tag, value.encodeId())
+                } else {
+                    @Suppress("UNCHECKED_CAST")
+                    val strategy = value::class.serializer() as KSerializer<Any>
+                    val obj = txn.newEntity(value::class.simpleName.toString())
+                    XodusEncoder(txn, classLoader, obj).encodeSerializableValue(strategy, value)
+                    ent.setLink(tag, obj)
+                }
             }
         }
     }

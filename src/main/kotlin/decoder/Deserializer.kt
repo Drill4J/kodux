@@ -26,6 +26,7 @@ import kotlinx.serialization.internal.*
 import kotlinx.serialization.modules.*
 import mu.*
 import org.apache.commons.compress.compressors.zstandard.*
+import org.nustaq.serialization.*
 import java.io.*
 
 private val logger = KotlinLogging.logger { }
@@ -94,33 +95,11 @@ class XodusDecoder(
         return restoreObject(des, ent, tag, deserializationSettings)
     }
 
-    private fun <T> restoreObject(
-        des: DeserializationStrategy<T>,
-        ent: Entity,
-        tag: String,
-        deserializationSettings: SerializationSettings? = null,
-    ): T = if (deserializationSettings != null) {
-        streamDeserialization(deserializationSettings, ent, tag)
-    } else {
-        kotlinxDeserialization(des, ent, tag)
-    }
-
-
-    private fun <T> streamDeserialization(
-        deserializationSettings: SerializationSettings,
-        ent: Entity,
-        tag: String,
-    ) = when (deserializationSettings.serializationType) {
-        SerializationType.FST -> {
-            fst.classLoader = classLoader
-            val blob = ent.getProperty(tag) as String
-            when (deserializationSettings.compressType) {
-                CompressType.ZSTD -> ZstdCompressorInputStream(File(blob).inputStream())
-                else -> File(blob).inputStream()
-            }.use {
-                logger.trace { "Reading entity: ${ent.type} from file: $blob" }
+    private fun <T> restoreObject(des: DeserializationStrategy<T>, ent: Entity, tag: String): T {
+        return when (des) {
+            ByteArraySerializer() -> {
                 @Suppress("UNCHECKED_CAST")
-                fst.decodeFromStream(it) as T
+                ent.getBlob(tag)?.readBytes() as T
             }
         }
     }
@@ -183,7 +162,7 @@ class XodusDecoder(
         }
         return when (targetSerializer) {
             !is GeneratedSerializer<*> -> {
-                link.getProperty(propertyName) ?: restoreObject(targetSerializer, link, propertyName)
+                link.getProperty(propertyName) ?: restoreObject(targetSerializer, link, propertyName, null)
             }
             else -> XodusDecoder(txn, classLoader, link.getLink(propertyName)!!).decodeSerializableValue(
                 targetSerializer

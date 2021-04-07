@@ -34,6 +34,7 @@ class XodusTest {
 
     private val storageDir = File("build/tmp/test/storages/${this::class.simpleName}-${UUID.randomUUID()}")
     private val agentStore = StoreClient(PersistentEntityStores.newInstance(storageDir))
+    private val pathToEntity = "\\${MapInMapWrapper::class.simpleName}\\map\\map\\value"
 
     @AfterTest
     fun after() {
