@@ -286,5 +286,6 @@ class XodusTest {
         assertNull(agentStore.findById<StoreMe>("id2"))
         assertNotNull(agentStore.findById<MapField>("id3") != null)
     }
+}
 
 }

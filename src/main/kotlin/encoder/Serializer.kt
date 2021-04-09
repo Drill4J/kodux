@@ -30,6 +30,10 @@ import java.io.*
 import java.nio.file.*
 import java.util.*
 
+import com.esotericsoftware.kryo.Kryo
+import com.esotericsoftware.kryo.io.*
+
+
 private val logger = KotlinLogging.logger { }
 
 class XodusEncoder(
@@ -171,18 +175,63 @@ class XodusEncoder(
         }
     }
 
-            else -> {
-                if (isId) {
-                    ent.setProperty(tag, value.encodeId())
-                } else {
-                    @Suppress("UNCHECKED_CAST")
-                    val strategy = value::class.serializer() as KSerializer<Any>
-                    val obj = txn.newEntity(value::class.simpleName.toString())
-                    XodusEncoder(txn, classLoader, obj).encodeSerializableValue(strategy, value)
-                    ent.setLink(tag, obj)
-                }
+
+    private fun streamSerialization(
+        serializationSerializationSettings: SerializationSettings,
+        ent: Entity,
+        value: Any,
+        tag: String,
+    ) = when (serializationSerializationSettings.serializationType) {
+        SerializationType.FST -> {
+            FstSerialization(ent, serializationSerializationSettings, value, tag)
+        }
+        SerializationType.KRYO -> {
+            KryoSerialization(value, ent, serializationSerializationSettings, tag)
+        }
+    }
+
+    private fun FstSerialization(
+        ent: Entity,
+        serializationSerializationSettings: SerializationSettings,
+        value: Any,
+        tag: String,
+    ) {
+        val conf = FSTConfiguration.getDefaultConfiguration()
+        val file = createEntityFile(ent)
+        when (serializationSerializationSettings.compressType) {
+            CompressType.ZSTD -> ZstdCompressorOutputStream(file.outputStream())
+            else -> file.outputStream()
+        }.use {
+            logger.trace { "Saving entity: ${ent.type} to file" }
+            conf.encodeToStream(it, value)
+            ent.setProperty(tag, file.absolutePath)
+        }
+    }
+
+    private fun KryoSerialization(
+        value: Any,
+        ent: Entity,
+        serializationSerializationSettings: SerializationSettings,
+        tag: String,
+    ) {
+        registerInKryoRec(value::class, kryo,value)
+        kryo.register(value::class.java, ImmutableClassSerializer(value::class))
+        val file = createEntityFile(ent)
+        when (serializationSerializationSettings.compressType) {
+            CompressType.ZSTD -> ZstdCompressorOutputStream(file.outputStream())
+            else -> file.outputStream()
+        }.let { outputStream ->
+            Output(outputStream).use {
+                kryo.writeClassAndObject(it, value)
+                ent.setProperty(tag, file.absolutePath)
             }
         }
+    }
+
+    private fun createEntityFile(ent: Entity): File {
+        val path = "${ent.store.location}\\${ent.type.replace(":", "\\")}"
+        Files.createDirectories(Paths.get(path))
+        return File(path, "${UUID.randomUUID()}.bin")
     }
 
 

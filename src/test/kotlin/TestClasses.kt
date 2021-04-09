@@ -72,6 +72,41 @@ data class TestClass(val string: String, val int: Int) : java.io.Serializable
 
 
 @Serializable
+data class StreamSerializationKryoTestObject(
+    @Id val id: CompositeId,
+    @StreamSerialization(SerializationType.KRYO, CompressType.ZSTD)
+    val map: List<String>,
+)
+
+@Serializable
+data class StreamSerializationKryoTestObject1(
+    @Id val id: CompositeId,
+    @StreamSerialization(SerializationType.KRYO, CompressType.ZSTD)
+    val map: TestClass,
+)
+
+@Serializable
+data class StreamSerializationKryoTestObjectTest(
+    @Id val id: CompositeId,
+    @StreamSerialization(SerializationType.KRYO, CompressType.ZSTD)
+    val testClass: TestClass,
+)
+
+@Serializable
+data class MapInMapWrapperKryo(
+    @Id val id: CompositeId,
+    val map: MutableMap<String, MapWrapperKryo>,
+)
+
+@Serializable
+data class MapWrapperKryo(
+    val id: Int,
+    @StreamSerialization(SerializationType.KRYO, CompressType.ZSTD)
+    val secondMap: MutableMap<String, TestClass>,
+)
+
+
+@Serializable
 data class MapField(
     @Id val id: String,
     val map: Map<EnumExample, TempObject> = emptyMap(),

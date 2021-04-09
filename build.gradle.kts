@@ -29,6 +29,7 @@ dependencies {
     implementation(kotlin("reflect"))
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:$coroutinesVersion")
     implementation("de.ruedigermoeller:fst:$fstVersion")
+    implementation("com.esotericsoftware:kryo:5.0.4")
     implementation("org.apache.commons:commons-compress:$apacheCompressVersion")
     implementation("com.github.luben:zstd-jni:$zstVersion")
     implementation("org.jetbrains.xodus:xodus-entity-store:$xodusVersion")

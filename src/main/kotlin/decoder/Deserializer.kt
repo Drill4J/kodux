@@ -16,7 +16,8 @@
 package com.epam.kodux.decoder
 
 import com.epam.kodux.*
-import com.epam.kodux.util.*
+import com.esotericsoftware.kryo.*
+import com.esotericsoftware.kryo.io.*
 import jetbrains.exodus.entitystore.*
 import kotlinx.serialization.*
 import kotlinx.serialization.builtins.*
@@ -100,6 +101,19 @@ class XodusDecoder(
             ByteArraySerializer() -> {
                 @Suppress("UNCHECKED_CAST")
                 ent.getBlob(tag)?.readBytes() as T
+            }
+        }
+        SerializationType.KRYO -> {
+            val blob = ent.getProperty(tag) as String
+            when (deserializationSettings.compressType) {
+                CompressType.ZSTD -> ZstdCompressorInputStream(File(blob).inputStream())
+                else -> File(blob).inputStream()
+            }.let { inputStream ->
+                Input(inputStream).use {
+                    logger.trace { "Reading entity: ${ent.type} from file: $blob" }
+                    @Suppress("UNCHECKED_CAST")
+                    kryo.readClassAndObject(it) as T
+                }
             }
         }
     }
