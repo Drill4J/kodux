@@ -4,8 +4,11 @@ plugins {
     kotlin("jvm")
     kotlin("plugin.serialization")
     id("com.github.hierynomus.license")
+    id("org.jetbrains.kotlin.plugin.noarg")
     `maven-publish`
 }
+
+
 
 val scriptUrl: String by extra
 
@@ -51,6 +54,10 @@ kotlin {
     ).let { annotations ->
         sourceSets.all { annotations.forEach(languageSettings::useExperimentalAnnotation) }
     }
+}
+
+noArg {
+    annotation("kotlinx.serialization.Serializable")
 }
 
 publishing {

@@ -171,7 +171,7 @@ class KryoTest {
 
 
 @Serializable
-internal class StoredClassData(
+internal data class StoredClassData(
     @Id val version: String,
     @StreamSerialization(SerializationType.KRYO, CompressType.ZSTD)
     val data: ClassData,
@@ -239,3 +239,4 @@ internal data class Method(
     val desc: String,
     val hash: String,
 )
+

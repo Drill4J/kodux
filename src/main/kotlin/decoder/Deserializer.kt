@@ -16,6 +16,7 @@
 package com.epam.kodux.decoder
 
 import com.epam.kodux.*
+import com.epam.kodux.util.*
 import com.esotericsoftware.kryo.*
 import com.esotericsoftware.kryo.io.*
 import jetbrains.exodus.entitystore.*
@@ -96,11 +97,32 @@ class XodusDecoder(
         return restoreObject(des, ent, tag, deserializationSettings)
     }
 
-    private fun <T> restoreObject(des: DeserializationStrategy<T>, ent: Entity, tag: String): T {
-        return when (des) {
-            ByteArraySerializer() -> {
+    private fun <T> restoreObject(
+        des: DeserializationStrategy<T>,
+        ent: Entity,
+        tag: String,
+        deserializationSettings: SerializationSettings? = null,
+    ): T = if (deserializationSettings != null) {
+        streamDeserialization(deserializationSettings, ent, tag)
+    } else {
+        kotlinxDeserialization(des, ent, tag)
+    }
+
+    private fun <T> streamDeserialization(
+        deserializationSettings: SerializationSettings,
+        ent: Entity,
+        tag: String,
+    ) = when (deserializationSettings.serializationType) {
+        SerializationType.FST -> {
+            fst.classLoader = classLoader
+            val blob = ent.getProperty(tag) as String
+            when (deserializationSettings.compressType) {
+                CompressType.ZSTD -> ZstdCompressorInputStream(File(blob).inputStream())
+                else -> File(blob).inputStream()
+            }.use {
+                logger.trace { "Reading entity: ${ent.type} from file: $blob" }
                 @Suppress("UNCHECKED_CAST")
-                ent.getBlob(tag)?.readBytes() as T
+                fst.decodeFromStream(it) as T
             }
         }
         SerializationType.KRYO -> {

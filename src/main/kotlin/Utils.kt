@@ -24,6 +24,7 @@ import kotlinx.serialization.json.*
 import java.lang.reflect.*
 import kotlin.reflect.*
 import kotlin.reflect.full.*
+import kotlin.reflect.jvm.*
 
 const val SIZE_PROPERTY_NAME = "size"
 
@@ -70,26 +71,111 @@ fun <T : Any> registerInKryoRec(klass: KClass<T>, kryo: Kryo, instance: Any) {
         for (param in constructor.parameters) {
             val kProperty = propsByName[param.name!!]!!
             when (param.type.javaType.typeName) {
-                "int" -> "Do noting"
-                "long" -> "Do noting"
-                "short" -> "Do noting"
-                "char" -> "Do noting"
-                "byte" -> "Do noting"
-                "double" -> "Do noting"
-                "float" -> "Do noting"
-                "java.lang.String" -> "Do noting"
+                "int", "long", "short", "char", "byte", "double", "float", "java.lang.String" -> Unit
                 else -> {
                     @Suppress("UNCHECKED_CAST")
                     val instance2 = kProperty.get(instance as T)!!
-                    kryo.register(instance2::class.java, ImmutableClassSerializer(instance2::class))
-                    registerInKryoRec(instance2::class, kryo, instance2)
+                    kryo.register(instance2::class.java)
+                    when (instance2) {
+                        is Map<*, *> -> {
+//                            (param.type.javaType as? ParameterizedType)?.actualTypeArguments?.forEach {
+//                                if (it is Class<*>) {
+//                                    kryo.register(it)
+//                                   // registerInKryoRec(it::class, kryo, instance2)
+//                                } else {
+//                                    kryo.register(it::class.java)
+//                                   // registerInKryoRec(it::class, kryo, instance2)
+//                                }
+//                            }
+                            val firstOrNullKeys = instance2.keys.firstOrNull()
+                            if (firstOrNullKeys != null) {
+                                kryo.register(firstOrNullKeys::class.java)
+                                registerInKryoRec(firstOrNullKeys::class, kryo, firstOrNullKeys)
+                            } else {
+                                registerInKryoKClass(instance::class,kryo)
+//                                (param.type.javaType as? ParameterizedType)?.actualTypeArguments?.forEach {
+//                                    kryo.register(it::class.java)
+//                                    registerInKryoRec(it::class, kryo, instance2)
+//                                }
+                            }
+                            val firstOrNullValues = instance2.values.firstOrNull()
+                            if (firstOrNullValues != null) {
+                                kryo.register(firstOrNullValues::class.java)
+                                registerInKryoRec(firstOrNullValues::class, kryo, firstOrNullValues)
+                            } else {
+                                registerInKryoKClass(instance::class,kryo)
+//                                (param.type.javaType as? ParameterizedType)?.actualTypeArguments?.forEach {
+//                                    kryo.register(it::class.java)
+//                                    registerInKryoRec(it::class, kryo, instance2)
+//                                }
+                            }
+
+//                            (instance2.keys as? ParameterizedType)?.actualTypeArguments?.forEach {
+//                                registerInKryoRec(it::class, kryo, instance2)
+//                            }
+//                            (instance2.keys as? ParameterizedType)?.actualTypeArguments?.forEach {
+//                                registerInKryoRec(it::class, kryo, instance2)
+//                            }
+                        }
+                        is Collection<*> -> {
+                            val firstOrNull = instance2.firstOrNull()
+                            if (firstOrNull != null) {
+                                kryo.register(firstOrNull::class.java)
+                                registerInKryoRec(firstOrNull::class, kryo, firstOrNull)
+                            } else {
+                                registerInKryoKClass(instance::class,kryo)
+//                                (param.type.javaType as? ParameterizedType)?.actualTypeArguments?.forEach {
+//                                    kryo.register(it::class.java)
+//                                    registerInKryoRec(it::class, kryo, instance2)
+//                                }
+                            }
+                        }
+                        else -> registerInKryoRec(instance2::class, kryo, instance2)
+                    }
                 }
             }
         }
     }
-
-
 }
+
+
+fun <T : Any> registerInKryoKClass(klass: KClass<T>, kryo: Kryo) {
+    val constructor = klass.primaryConstructor
+    if (constructor != null) {
+        for (param in constructor.parameters) {
+            val kType = param.type
+            when (kType.toString()) {
+                "int", "long", "short", "char", "byte", "double", "float", "java.lang.String" -> Unit
+                "kotlin.Int", "kotlin.Long", "kotlin.Short", "kotlin.Char", "kotlin.Byte", "kotlin.Double", "kotlin.Float", "kotlin.String" -> Unit
+                else -> {
+                    val jvmErasure = kType.jvmErasure
+                    kryo.register(jvmErasure.java)
+                    val interfaces = jvmErasure.java.interfaces
+                    when {
+                        interfaces.contains(Map::class.java) -> {
+                            kType.arguments.forEach { kTypeProjection ->
+                                val kClass = (kTypeProjection.type as KType).jvmErasure
+                                kryo.register(kClass.java)
+                                registerInKryoKClass(kClass, kryo)
+                            }
+                        }
+                        interfaces.contains(Collection::class.java) -> {
+                            kType.arguments.forEach { kTypeProjection ->
+                                val kClass = (kTypeProjection.type as KType).jvmErasure
+                                kryo.register(kClass.java)
+                                registerInKryoKClass(kClass, kryo)
+                            }
+                        }
+                        else -> {
+                            registerInKryoKClass(kType.jvmErasure, kryo)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
 
 class ImmutableClassSerializer<T : Any>(val klass: KClass<T>) : Serializer<T>() {
 
@@ -105,11 +191,11 @@ class ImmutableClassSerializer<T : Any>(val klass: KClass<T>) : Serializer<T>() 
             when (obj) {
                 is Collection<*> -> {
                     obj.forEach {
-                        kryo.register(it!!::class.java,ImmutableClassSerializer(it::class))
+                        kryo.register(it!!::class.java, ImmutableClassSerializer(it::class))
                         kryo.writeClassAndObject(output, it)
                     }
                 }
-                else ->{
+                else -> {
 
                 }
             }

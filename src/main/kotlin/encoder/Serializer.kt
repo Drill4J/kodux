@@ -196,14 +196,13 @@ class XodusEncoder(
         value: Any,
         tag: String,
     ) {
-        val conf = FSTConfiguration.getDefaultConfiguration()
         val file = createEntityFile(ent)
         when (serializationSerializationSettings.compressType) {
             CompressType.ZSTD -> ZstdCompressorOutputStream(file.outputStream())
             else -> file.outputStream()
         }.use {
             logger.trace { "Saving entity: ${ent.type} to file" }
-            conf.encodeToStream(it, value)
+            fst.encodeToStream(it, value)
             ent.setProperty(tag, file.absolutePath)
         }
     }
@@ -214,8 +213,9 @@ class XodusEncoder(
         serializationSerializationSettings: SerializationSettings,
         tag: String,
     ) {
+       // registerInKryoRecSecondVersion(value::class, kryo)
         registerInKryoRec(value::class, kryo,value)
-        kryo.register(value::class.java, ImmutableClassSerializer(value::class))
+        kryo.register(value::class.java)
         val file = createEntityFile(ent)
         when (serializationSerializationSettings.compressType) {
             CompressType.ZSTD -> ZstdCompressorOutputStream(file.outputStream())
