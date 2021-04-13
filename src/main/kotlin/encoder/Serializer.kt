@@ -16,6 +16,7 @@
 package com.epam.kodux.encoder
 
 import com.epam.kodux.*
+import com.epam.kodux.util.*
 import jetbrains.exodus.entitystore.*
 import kotlinx.serialization.*
 import kotlinx.serialization.descriptors.*
@@ -24,7 +25,6 @@ import kotlinx.serialization.internal.*
 import kotlinx.serialization.modules.*
 import mu.*
 import org.apache.commons.compress.compressors.zstandard.*
-import org.nustaq.serialization.*
 import java.io.*
 import java.nio.file.*
 import java.util.*
@@ -178,7 +178,6 @@ class XodusEncoder(
         tag: String,
     ) = when (serializationSerializationSettings.serializationType) {
         SerializationType.FST -> {
-            val conf = FSTConfiguration.getDefaultConfiguration()
             val path = "${ent.store.location}\\${ent.type.replace(":", "\\")}"
             Files.createDirectories(Paths.get(path))
             val file = File(path, "${UUID.randomUUID()}.bin")
@@ -187,7 +186,7 @@ class XodusEncoder(
                 else -> file.outputStream()
             }.use {
                 logger.trace { "Saving entity: ${ent.type} to file: $path" }
-                conf.encodeToStream(it, value)
+                fst.encodeToStream(it, value)
                 ent.setProperty(tag, file.absolutePath)
             }
         }

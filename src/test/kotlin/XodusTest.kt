@@ -34,7 +34,6 @@ class XodusTest {
 
     private val storageDir = File("build/tmp/test/storages/${this::class.simpleName}-${UUID.randomUUID()}")
     private val agentStore = StoreClient(PersistentEntityStores.newInstance(storageDir))
-    private val pathToEntity = "\\${MapInMapWrapper::class.simpleName}\\map\\map\\value"
 
     @AfterTest
     fun after() {
@@ -60,19 +59,18 @@ class XodusTest {
     @Test
     fun `should correctly update an object with composite id`() = runBlocking {
         val id = CompositeId("one", 1)
-        updateObject(CompositeData(id, "data"), id)
-        updateObject(CompositeData(id, "data2"), id)
+        updateObject(CompositeData(id, "data"), id, agentStore)
+        updateObject(CompositeData(id, "data2"), id, agentStore)
     }
 
     @Test
     fun `should correctly create,update,delete an object with id and extra one annotation`() = runBlocking {
         val id = CompositeId("one", 1)
-        updateObject(ObjectWithTwoAnnotation(id, 100), id)
-        updateObject(ObjectWithTwoAnnotation(id, 2000), id)
+        updateObject(ObjectWithTwoAnnotation(id, 100), id, agentStore)
+        updateObject(ObjectWithTwoAnnotation(id, 2000), id, agentStore)
         agentStore.deleteById<ObjectWithTwoAnnotation>(id)
         assertEquals(0, agentStore.getAll<ObjectWithTwoAnnotation>().count())
     }
-
 
     @Test
     fun `should store and retrieve a simple object`() = runBlocking {
@@ -288,67 +286,4 @@ class XodusTest {
         assertNotNull(agentStore.findById<MapField>("id3") != null)
     }
 
-    @Test
-    fun `should correctly create,update,get and delete an object with id and StreamSerialization annotation`() = runBlocking {
-        val id = CompositeId("one", 1)
-        updateObject(StreamSerializationTestObject(id, listOf("one", "two", "three")), id)
-        updateObject(StreamSerializationTestObject(id, listOf("three", "two", "one")), id)
-        agentStore.deleteById<StreamSerializationTestObject>(id)
-        assertEquals(0, agentStore.getAll<StreamSerializationTestObject>().count())
-    }
-
-    @Test
-    fun `should correctly delete an object with StreamSerialization annotation in inner object`() = runBlocking {
-        val id = CompositeId("one", 1)
-        val mapInMapWrapper = storeMapInMapWrapper(id)
-        agentStore.store(mapInMapWrapper)
-        assertEquals(mapInMapWrapper, agentStore.findById<MapInMapWrapper>(id))
-        agentStore.deleteById<MapInMapWrapper>(id)
-        assertTrue(File("${agentStore.location}$pathToEntity").listFiles().isNullOrEmpty())
-    }
-
-    @Test
-    fun `should not delete files belonging to another entity`() = runBlocking {
-        val firstId = CompositeId("one", 1)
-        val mapInMapWrapper = storeMapInMapWrapper(firstId)
-
-        val secondId = CompositeId("two", 2)
-        val mapInMapWrapper2 = storeMapInMapWrapper(secondId)
-        
-        assertEquals(
-            10,
-            File("${agentStore.location}$pathToEntity").listFiles()?.size ?: 0
-        )
-        assertEquals(mapInMapWrapper, agentStore.findById<MapInMapWrapper>(firstId))
-        agentStore.deleteById<MapInMapWrapper>(firstId)
-        assertEquals(
-            5,
-            File("${agentStore.location}$pathToEntity").listFiles()?.size ?: 0
-        )
-        assertEquals(mapInMapWrapper2, agentStore.findById<MapInMapWrapper>(secondId))
-        agentStore.deleteById<MapInMapWrapper>(secondId)
-        assertEquals(
-            0,
-            File("${agentStore.location}$pathToEntity").listFiles()?.size ?: 0
-        )
-    }
-
-    private suspend inline fun <reified T : Any> updateObject(data: T, id: Any, objectCount: Int = 1) {
-        agentStore.store(data)
-        assertEquals(objectCount, agentStore.getAll<T>().count())
-        assertEquals(data, agentStore.findById<T>(id))
-    }
-
-    private suspend fun storeMapInMapWrapper(id: CompositeId): MapInMapWrapper {
-        val mapInMapWrapper = MapInMapWrapper(id, mutableMapOf())
-        for (i in 1..5) {
-            val a = MapWrapper(i, mutableMapOf())
-            for (j in 1..5) {
-                a.secondMap["$j"] = TestClass("$j", j)
-            }
-            mapInMapWrapper.map["$i"] = a
-        }
-        agentStore.store(mapInMapWrapper)
-        return mapInMapWrapper
-    }
 }

@@ -51,7 +51,7 @@ data class CompositeData(
 data class StreamSerializationTestObject(
     @Id val id: CompositeId,
     @StreamSerialization(SerializationType.FST, CompressType.ZSTD)
-    val map: List<String>,
+    val list: List<String>,
 ) : java.io.Serializable
 
 @Serializable

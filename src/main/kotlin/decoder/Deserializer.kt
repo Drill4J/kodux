@@ -16,6 +16,7 @@
 package com.epam.kodux.decoder
 
 import com.epam.kodux.*
+import com.epam.kodux.util.*
 import jetbrains.exodus.entitystore.*
 import kotlinx.serialization.*
 import kotlinx.serialization.builtins.*
@@ -25,7 +26,6 @@ import kotlinx.serialization.internal.*
 import kotlinx.serialization.modules.*
 import mu.*
 import org.apache.commons.compress.compressors.zstandard.*
-import org.nustaq.serialization.*
 import java.io.*
 
 private val logger = KotlinLogging.logger { }
@@ -112,8 +112,7 @@ class XodusDecoder(
         tag: String,
     ) = when (deserializationSettings.serializationType) {
         SerializationType.FST -> {
-            val conf = FSTConfiguration.getDefaultConfiguration()
-            conf.classLoader = classLoader
+            fst.classLoader = classLoader
             val blob = ent.getProperty(tag) as String
             when (deserializationSettings.compressType) {
                 CompressType.ZSTD -> ZstdCompressorInputStream(File(blob).inputStream())
@@ -121,7 +120,7 @@ class XodusDecoder(
             }.use {
                 logger.trace { "Reading entity: ${ent.type} from file: $blob" }
                 @Suppress("UNCHECKED_CAST")
-                conf.decodeFromStream(it) as T
+                fst.decodeFromStream(it) as T
             }
         }
     }
