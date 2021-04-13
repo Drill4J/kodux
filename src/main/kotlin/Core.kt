@@ -17,6 +17,7 @@ package com.epam.kodux
 
 import com.epam.kodux.decoder.*
 import com.epam.kodux.encoder.*
+import com.epam.kodux.util.*
 import jetbrains.exodus.entitystore.*
 import kotlinx.serialization.*
 import mu.*

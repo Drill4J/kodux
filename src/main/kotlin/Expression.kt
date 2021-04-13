@@ -15,6 +15,7 @@
  */
 package com.epam.kodux
 
+import com.epam.kodux.util.*
 import jetbrains.exodus.entitystore.*
 import kotlin.reflect.*
 
