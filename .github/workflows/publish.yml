@@ -25,9 +25,8 @@ jobs:
         with:
           arguments: -s --no-daemon -Pversion=${GITHUB_REF:11} check
       - name: Publish
-        uses: eskatos/gradle-command-action@v1
-        with:
-          arguments: -s --no-daemon -Pversion=${GITHUB_REF:11} publish
+        run: |
+          gradle -si --no-daemon -Pversion=${GITHUB_REF:11} publish
         env:
           BINTRAY_USER: ${{ secrets.BINTRAY_USER }}
           BINTRAY_API_KEY: ${{ secrets.BINTRAY_API_KEY }}
