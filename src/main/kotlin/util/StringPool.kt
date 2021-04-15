@@ -15,10 +15,14 @@
  */
 package com.epam.kodux.util
 
+import mu.*
 import java.lang.ref.*
 import java.util.*
 
-private val weakRefStringPool = WeakHashMap<String, WeakReference<String>>(1000000)
+private val logger = KotlinLogging.logger { }
+val initialPoolCapacity = System.getenv("DRILL_INITIAL_POOL_SIZE")?.toInt() ?: 20_000_000
+
+internal val weakRefStringPool = WeakHashMap<String, WeakReference<String>>(initialPoolCapacity)
 
 fun String.weakIntern(): String {
     val cached = weakRefStringPool[this]
@@ -28,4 +32,9 @@ fun String.weakIntern(): String {
     }
     weakRefStringPool[this] = WeakReference(this)
     return this
+}
+
+@Suppress("unused")
+fun logPoolStats() {
+    logger.info { "count strings ${weakRefStringPool.size} in pool" }
 }
