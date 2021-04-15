@@ -33,6 +33,7 @@ class FstTest {
     fun after() {
         agentStore.close()
         storageDir.deleteRecursively()
+        weakRefStringPool.clear()
     }
 
     @Test
@@ -100,6 +101,12 @@ class FstTest {
         }
     }
 
+    @Test
+    fun `check weak pool`() = runBlocking {
+        "first".weakIntern()
+        "first".weakIntern()
+        assertEquals(1, weakRefStringPool.size)
+    }
 
     private suspend fun storeMapInMapWrapper(id: CompositeId): MapInMapWrapper {
         val mapInMapWrapper = MapInMapWrapper(id, mutableMapOf())
