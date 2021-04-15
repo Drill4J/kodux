@@ -100,6 +100,17 @@ class FstTest {
         }
     }
 
+    @Test
+    fun `deserialized string must be in string pool 2`() = runBlocking {
+        val id = CompositeId("one", 1)
+        val list = listOf("one".weakIntern(), "two".weakIntern(), "three".weakIntern())
+        agentStore.store(StreamSerializationTestObject(id, list))
+        val streamSerializationTestObject = agentStore.findById<StreamSerializationTestObject>(id)
+        for (i in list.indices) {
+            assertSame(list[i], streamSerializationTestObject!!.list[i])
+        }
+    }
+
 
     private suspend fun storeMapInMapWrapper(id: CompositeId): MapInMapWrapper {
         val mapInMapWrapper = MapInMapWrapper(id, mutableMapOf())
