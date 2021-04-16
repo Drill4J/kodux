@@ -16,11 +16,16 @@
 package com.epam.kodux.util
 
 import mu.*
+import org.nustaq.serialization.util.*
 import java.lang.ref.*
 import java.util.*
 
 private val logger = KotlinLogging.logger { }
-val initialPoolCapacity = System.getenv("DRILL_INITIAL_POOL_SIZE")?.toInt() ?: 20_000_000
+
+val initialPoolCapacity = (System.getenv("DRILL_INITIAL_POOL_SIZE")?.toInt() ?: 1_000_000).also {
+    logger.info { "Initial pool size is $it" }
+}
+
 
 internal val weakRefStringPool = WeakHashMap<String, WeakReference<String>>(initialPoolCapacity)
 
@@ -36,5 +41,5 @@ fun String.weakIntern(): String {
 
 @Suppress("unused")
 fun logPoolStats() {
-    logger.info { "count strings ${weakRefStringPool.size} in pool" }
+    logger.info { "count strings ${weakRefStringPool.size} in pool; Fst buffer input size ${FSTInputStream.cachedBuffer.get().size}" }
 }

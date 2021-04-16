@@ -21,6 +21,7 @@ import kotlinx.coroutines.*
 import org.junit.Test
 import java.io.*
 import java.util.*
+import kotlin.random.Random
 import kotlin.test.*
 
 class FstTest {
@@ -107,6 +108,57 @@ class FstTest {
         "first".weakIntern()
         assertEquals(1, weakRefStringPool.size)
     }
+
+    @Test
+    fun `perf test! store and load a lot of data`() = runBlocking {
+        val countSessions = 10
+        repeat(countSessions) { index ->
+            index.takeIf { it % 10 == 0 }?.let { println("store session, index = $it...") }
+            startStopSession("sessionId$index")
+        }
+        repeat(countSessions) { index ->
+            index.takeIf { it % 10 == 0 }?.let { println("load session, index = $it...") }
+            loadSession("sessionId$index")
+        }
+    }
+
+    @Test
+    fun `perf test! store and load big data`() = runBlocking {
+        val sessionId = "sessionId"
+        //ok
+        startStopSession(sessionId, 1, 1_000, 20_000)
+        //oom
+        //startStopSession(sessionId, 1, 5_000, 20_000)
+        loadSession(sessionId)
+    }
+
+    private suspend fun loadSession(s: String) {
+        val finishSession = agentStore.findById<FinishSession>(s)
+        println(finishSession?.execClassData?.size ?: 0)
+    }
+
+    private suspend fun startStopSession(
+        sessionId: String,
+        countAddProbes: Int = 1,
+        sizeExec: Int = 1_000,
+        sizeProbes: Int = 20_000,
+    ) {
+        var collection: List<ExecClassData> = mutableListOf()
+        repeat(countAddProbes) { index ->
+            index.takeIf { it % 10 == 0 }?.let { println("adding probes, index = $it...") }
+            val execClassData: List<ExecClassData> = listOf(0 until sizeExec).flatten().map {
+                ExecClassData(
+                    id = Random.nextLong(100_000_000),
+                    className = "foo/Bar",
+                    probes = randomBoolean(sizeProbes)
+                )
+            }
+            collection = execClassData
+        }
+        agentStore.store(FinishSession(sessionId, collection))
+    }
+
+    private fun randomBoolean(n: Int = 100) = listOf(0 until n).flatten().map { true }
 
     private suspend fun storeMapInMapWrapper(id: CompositeId): MapInMapWrapper {
         val mapInMapWrapper = MapInMapWrapper(id, mutableMapOf())
