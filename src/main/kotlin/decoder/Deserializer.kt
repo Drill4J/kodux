@@ -113,10 +113,7 @@ class XodusDecoder(
         tag: String,
     ) = when (deserializationSettings.serializationType) {
         SerializationType.FST -> {
-            val fst: FSTConfiguration = FSTConfiguration.getDefaultConfiguration().also {
-                it.streamCoderFactory = StreamDecoderFactory(it)
-                it.classLoader = classLoader
-            }
+            fst.classLoader = classLoader
             val blob = ent.getProperty(tag) as String
             when (deserializationSettings.compressType) {
                 CompressType.ZSTD -> ZstdCompressorInputStream(File(blob).inputStream())

@@ -203,3 +203,19 @@ data class ObjectWithTwoAnnotation(
     @Id val id: CompositeId,
     val size: Int,
 )
+
+@Serializable
+data class FinishSession(
+    @Id
+    val sessionId: String,
+    @StreamSerialization(SerializationType.FST, CompressType.ZSTD)
+    val execClassData: List<ExecClassData>,
+) : java.io.Serializable
+
+@Serializable
+data class ExecClassData(
+    val id: Long? = null,
+    val className: String,
+    val probes: List<Boolean>,
+    val testName: String = "",
+) : java.io.Serializable

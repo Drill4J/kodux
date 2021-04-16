@@ -18,19 +18,22 @@ package com.epam.kodux.util
 import org.nustaq.serialization.*
 import org.nustaq.serialization.coders.*
 
-/*
+
 val fst: FSTConfiguration = FSTConfiguration.createDefaultConfiguration().also {
     it.streamCoderFactory = StreamDecoderFactory(it)
-    it.isForceSerializable = true //TODO check for perf
-    it.isShareReferences = false //TODO check for perf
+   // it.isForceSerializable = true //TODO check for perf
+  //  it.isShareReferences = false //TODO check for perf
 }
- */
+
 
 internal class StreamDecoderFactory(
     private val fstConfiguration: FSTConfiguration,
-    private val input: ThreadLocal<*> = ThreadLocal<Any?>(),
-    private val output: ThreadLocal<*> = ThreadLocal<Any?>(),
 ) : FSTConfiguration.StreamCoderFactory {
+
+    companion object {
+        private val inputStreamThreadLocal: ThreadLocal<*> = ThreadLocal<Any?>()
+        private val outputStreamThreadLocal: ThreadLocal<*> = ThreadLocal<Any?>()
+    }
 
     override fun createStreamEncoder(): FSTEncoder {
         return FSTStreamEncoder(fstConfiguration)
@@ -41,11 +44,11 @@ internal class StreamDecoderFactory(
     }
 
     override fun getInput(): ThreadLocal<*> {
-        return input
+        return inputStreamThreadLocal
     }
 
     override fun getOutput(): ThreadLocal<*> {
-        return output
+        return outputStreamThreadLocal
     }
 }
 
