@@ -25,6 +25,7 @@ import kotlinx.serialization.internal.*
 import kotlinx.serialization.modules.*
 import mu.*
 import org.apache.commons.compress.compressors.zstandard.*
+import org.nustaq.serialization.*
 import java.io.*
 import java.nio.file.*
 import java.util.*
@@ -181,6 +182,9 @@ class XodusEncoder(
             val path = "${ent.store.location}\\${ent.type.replace(":", "\\")}"
             Files.createDirectories(Paths.get(path))
             val file = File(path, "${UUID.randomUUID()}.bin")
+            val fst: FSTConfiguration = FSTConfiguration.getDefaultConfiguration().also {
+                it.streamCoderFactory = StreamDecoderFactory(it)
+            }
             when (serializationSerializationSettings.compressType) {
                 CompressType.ZSTD -> ZstdCompressorOutputStream(file.outputStream())
                 else -> file.outputStream()
