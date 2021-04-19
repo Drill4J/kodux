@@ -26,6 +26,7 @@ import kotlinx.serialization.internal.*
 import kotlinx.serialization.modules.*
 import mu.*
 import org.apache.commons.compress.compressors.zstandard.*
+import org.nustaq.serialization.*
 import java.io.*
 
 private val logger = KotlinLogging.logger { }
@@ -112,7 +113,10 @@ class XodusDecoder(
         tag: String,
     ) = when (deserializationSettings.serializationType) {
         SerializationType.FST -> {
-            fst.classLoader = classLoader
+            val fst: FSTConfiguration = FSTConfiguration.getDefaultConfiguration().also {
+                it.streamCoderFactory = StreamDecoderFactory(it)
+                it.classLoader = classLoader
+            }
             val blob = ent.getProperty(tag) as String
             when (deserializationSettings.compressType) {
                 CompressType.ZSTD -> ZstdCompressorInputStream(File(blob).inputStream())

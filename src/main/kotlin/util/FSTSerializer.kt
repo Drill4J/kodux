@@ -18,9 +18,13 @@ package com.epam.kodux.util
 import org.nustaq.serialization.*
 import org.nustaq.serialization.coders.*
 
+/*
 val fst: FSTConfiguration = FSTConfiguration.createDefaultConfiguration().also {
     it.streamCoderFactory = StreamDecoderFactory(it)
+    it.isForceSerializable = true //TODO check for perf
+    it.isShareReferences = false //TODO check for perf
 }
+ */
 
 internal class StreamDecoderFactory(
     private val fstConfiguration: FSTConfiguration,
