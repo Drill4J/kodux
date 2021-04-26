@@ -20,7 +20,7 @@ repositories {
 val coroutinesVersion: String by project
 val serializationVersion: String by project
 val xodusVersion: String by project
-val zstVersion : String by project
+val zstVersion: String by project
 val apacheCompressVersion: String by project
 val fstVersion: String by project
 

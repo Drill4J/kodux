@@ -17,12 +17,13 @@ package com.epam.kodux.util
 
 import org.nustaq.serialization.*
 import org.nustaq.serialization.coders.*
+import java.io.*
 
 
-val fst: FSTConfiguration = FSTConfiguration.createDefaultConfiguration().also {
+val fst: FSTConfiguration = FSTCustomConfiguration().also {
     it.streamCoderFactory = StreamDecoderFactory(it)
-   // it.isForceSerializable = true //TODO check for perf
-  //  it.isShareReferences = false //TODO check for perf
+//    it.isForceSerializable = true //TODO EPMDJ-6919 check for perf
+//    it.isShareReferences = false //TODO EPMDJ-6919 check for perf
 }
 
 
@@ -40,7 +41,15 @@ internal class StreamDecoderFactory(
     }
 
     override fun createStreamDecoder(): FSTDecoder {
-        return FSTCustomSteamDecoder(fstConfiguration)
+        return object : FSTStreamDecoder(fstConfiguration) {
+            override fun readStringUTF(): String {
+                return super.readStringUTF().weakIntern()
+            }
+
+            override fun readStringAsc(): String {
+                return super.readStringAsc().weakIntern()
+            }
+        }
     }
 
     override fun getInput(): ThreadLocal<*> {
@@ -52,8 +61,20 @@ internal class StreamDecoderFactory(
     }
 }
 
-internal class FSTCustomSteamDecoder(conf: FSTConfiguration) : FSTStreamDecoder(conf) {
-    override fun readStringUTF(): String {
-        return super.readStringUTF().weakIntern()
+class FSTCustomConfiguration : FSTConfiguration(null) {
+
+    init {
+        initDefaultFstConfigurationInternal(this)
+    }
+
+    override fun encodeToStream(out: OutputStream, toSerialize: Any) {
+        super.encodeToStream(out, toSerialize)
+        getObjectOutput(byteArrayOf())
+    }
+
+    override fun decodeFromStream(inputStream: InputStream): Any {
+        return super.decodeFromStream(inputStream).also {
+            getObjectInput(byteArrayOf())
+        }
     }
 }
