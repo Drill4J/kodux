@@ -41,5 +41,5 @@ fun String.weakIntern(): String {
 
 @Suppress("unused")
 fun logPoolStats() {
-    logger.info { "count strings ${weakRefStringPool.size} in pool; Fst buffer input size ${FSTInputStream.cachedBuffer.get().size}" }
+    logger.info { "Count strings ${weakRefStringPool.size} in pool" }
 }

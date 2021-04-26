@@ -132,7 +132,38 @@ class FstTest {
         loadSession(sessionId)
     }
 
+    @Test
+    @Ignore("Test for local run only, set the heap size to 2g before running")
+    fun `memory consumption test`(): Unit = runBlocking(Dispatchers.IO) {
+        val sessionId = "sessionId"
+
+        startStopSession(sessionId, 1, 11_650, 20_000)
+
+        Thread.sleep(1000)
+
+        loadSession(sessionId)
+
+        Thread.sleep(1000)
+        val firstId = CompositeId("one", 1)
+
+        storeMapInMapWrapper(firstId, 1220)
+
+        Thread.sleep(1000)
+
+        loadSession(sessionId)
+
+        Thread.sleep(1000)
+
+        println("Loading Loading map in map")
+        agentStore.findById<MapInMapWrapper>(firstId)
+        Thread.sleep(1000)
+
+        startStopSession(sessionId, 1, 11_650, 20_000)
+    }
+
+
     private suspend fun loadSession(s: String) {
+        println("Loading session")
         val finishSession = agentStore.findById<FinishSession>(s)
         println(finishSession?.execClassData?.size ?: 0)
     }
@@ -143,6 +174,7 @@ class FstTest {
         sizeExec: Int = 1_000,
         sizeProbes: Int = 20_000,
     ) {
+        println("Storing session")
         var collection: List<ExecClassData> = mutableListOf()
         repeat(countAddProbes) { index ->
             index.takeIf { it % 10 == 0 }?.let { println("adding probes, index = $it...") }
@@ -156,20 +188,23 @@ class FstTest {
             collection = execClassData
         }
         agentStore.store(FinishSession(sessionId, collection))
+        println("Session stored")
     }
 
     private fun randomBoolean(n: Int = 100) = listOf(0 until n).flatten().map { true }
 
-    private suspend fun storeMapInMapWrapper(id: CompositeId): MapInMapWrapper {
+    private suspend fun storeMapInMapWrapper(id: CompositeId, size: Int = 5): MapInMapWrapper {
+        println("Storing map in map")
         val mapInMapWrapper = MapInMapWrapper(id, mutableMapOf())
-        for (i in 1..5) {
+        for (i in 1..size) {
             val a = MapWrapper(i, mutableMapOf())
-            for (j in 1..5) {
+            for (j in 1..size) {
                 a.secondMap["$j"] = TestClass("$j", j)
             }
             mapInMapWrapper.map["$i"] = a
         }
         agentStore.store(mapInMapWrapper)
+        println("Map in map stored")
         return mapInMapWrapper
     }
 
