@@ -29,7 +29,7 @@ annotation class StreamSerialization(
 )
 
 enum class SerializationType {
-    FST
+    FST, KRYO
 }
 
 enum class CompressType {
