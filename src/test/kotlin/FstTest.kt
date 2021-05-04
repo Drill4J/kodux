@@ -41,10 +41,10 @@ class FstTest {
     fun `should correctly create,update,get and delete an object with id and StreamSerialization annotation`() =
         runBlocking {
             val id = CompositeId("one", 1)
-            updateObject(StreamSerializationTestObject(id, listOf("one", "two", "three")), id, agentStore)
-            updateObject(StreamSerializationTestObject(id, listOf("three", "two", "one")), id, agentStore)
-            agentStore.deleteById<StreamSerializationTestObject>(id)
-            assertEquals(0, agentStore.getAll<StreamSerializationTestObject>().count())
+            updateObject(FSTSerializationTestObject(id, listOf("one", "two", "three")), id, agentStore)
+            updateObject(FSTSerializationTestObject(id, listOf("three", "two", "one")), id, agentStore)
+            agentStore.deleteById<FSTSerializationTestObject>(id)
+            assertEquals(0, agentStore.getAll<FSTSerializationTestObject>().count())
         }
 
     @Test
@@ -95,8 +95,8 @@ class FstTest {
     fun `deserialized string must be in string pool `() = runBlocking {
         val id = CompositeId("one", 1)
         val list = listOf("one".weakIntern(), "two".weakIntern(), "three".weakIntern())
-        agentStore.store(StreamSerializationTestObject(id, list))
-        val streamSerializationTestObject = agentStore.findById<StreamSerializationTestObject>(id)
+        agentStore.store(FSTSerializationTestObject(id, list))
+        val streamSerializationTestObject = agentStore.findById<FSTSerializationTestObject>(id)
         for (i in list.indices) {
             assertSame(list[i], streamSerializationTestObject!!.list[i])
         }

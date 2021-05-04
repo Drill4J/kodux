@@ -4,6 +4,7 @@ plugins {
     kotlin("jvm")
     kotlin("plugin.serialization")
     id("com.github.hierynomus.license")
+    id("org.jetbrains.kotlin.plugin.noarg")
     `maven-publish`
 }
 
@@ -23,12 +24,14 @@ val xodusVersion: String by project
 val zstVersion: String by project
 val apacheCompressVersion: String by project
 val fstVersion: String by project
+val kryoVersion: String by project
 
 dependencies {
     implementation(kotlin("stdlib-jdk8"))
     implementation(kotlin("reflect"))
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:$coroutinesVersion")
     implementation("de.ruedigermoeller:fst:$fstVersion")
+    implementation("com.esotericsoftware:kryo:$kryoVersion")
     implementation("org.apache.commons:commons-compress:$apacheCompressVersion")
     implementation("com.github.luben:zstd-jni:$zstVersion")
     implementation("org.jetbrains.xodus:xodus-entity-store:$xodusVersion")
@@ -50,6 +53,10 @@ kotlin {
     ).let { annotations ->
         sourceSets.all { annotations.forEach(languageSettings::useExperimentalAnnotation) }
     }
+}
+
+noArg {
+    annotation("kotlinx.serialization.Serializable")
 }
 
 publishing {

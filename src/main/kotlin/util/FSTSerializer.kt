@@ -15,6 +15,7 @@
  */
 package com.epam.kodux.util
 
+import com.esotericsoftware.kryo.*
 import org.nustaq.serialization.*
 import org.nustaq.serialization.coders.*
 import java.io.*
@@ -25,6 +26,8 @@ val fst: FSTConfiguration = FSTCustomConfiguration().also {
 //    it.isForceSerializable = true //TODO EPMDJ-6919 check for perf
 //    it.isShareReferences = false //TODO EPMDJ-6919 check for perf
 }
+
+
 
 
 internal class StreamDecoderFactory(
@@ -61,7 +64,7 @@ internal class StreamDecoderFactory(
     }
 }
 
-class FSTCustomConfiguration : FSTConfiguration(null) {
+internal class FSTCustomConfiguration : FSTConfiguration(null) {
 
     init {
         initDefaultFstConfigurationInternal(this)

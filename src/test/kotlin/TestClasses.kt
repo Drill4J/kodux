@@ -48,11 +48,19 @@ data class CompositeData(
 )
 
 @Serializable
-data class StreamSerializationTestObject(
+data class FSTSerializationTestObject(
     @Id val id: CompositeId,
     @StreamSerialization(SerializationType.FST, CompressType.ZSTD)
     val list: List<String>,
 ) : java.io.Serializable
+
+@Serializable
+data class KRYOSerializationTestObject(
+    @Id val id: CompositeId,
+    @StreamSerialization(SerializationType.KRYO, CompressType.ZSTD)
+    val list: List<String>,
+) : java.io.Serializable
+
 
 @Serializable
 data class MapInMapWrapper(
@@ -69,6 +77,41 @@ data class MapWrapper(
 
 @Serializable
 data class TestClass(val string: String, val int: Int) : java.io.Serializable
+
+
+@Serializable
+data class StreamSerializationKryoStingMap(
+    @Id val id: CompositeId,
+    @StreamSerialization(SerializationType.KRYO, CompressType.ZSTD)
+    val map: List<String>,
+)
+
+@Serializable
+data class StreamSerializationKryoTestObject(
+    @Id val id: CompositeId,
+    @StreamSerialization(SerializationType.KRYO, CompressType.ZSTD)
+    val map: TestClass,
+)
+
+@Serializable
+data class StreamSerializationKryoTestObjectTest(
+    @Id val id: CompositeId,
+    @StreamSerialization(SerializationType.KRYO, CompressType.ZSTD)
+    val testClass: TestClass,
+)
+
+@Serializable
+data class MapInMapWrapperKryo(
+    @Id val id: CompositeId,
+    val map: MutableMap<String, MapWrapperKryo>,
+)
+
+@Serializable
+data class MapWrapperKryo(
+    val id: Int,
+    @StreamSerialization(SerializationType.KRYO, CompressType.ZSTD)
+    val secondMap: MutableMap<String, TestClass>,
+)
 
 
 @Serializable

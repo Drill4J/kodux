@@ -30,6 +30,10 @@ import java.io.*
 import java.nio.file.*
 import java.util.*
 
+import com.esotericsoftware.kryo.Kryo
+import com.esotericsoftware.kryo.io.*
+
+
 private val logger = KotlinLogging.logger { }
 
 class XodusEncoder(
@@ -179,18 +183,52 @@ class XodusEncoder(
         tag: String,
     ) = when (serializationSerializationSettings.serializationType) {
         SerializationType.FST -> {
-            val path = "${ent.store.location}\\${ent.type.replace(":", "\\")}"
-            Files.createDirectories(Paths.get(path))
-            val file = File(path, "${UUID.randomUUID()}.bin")
-            when (serializationSerializationSettings.compressType) {
-                CompressType.ZSTD -> ZstdCompressorOutputStream(file.outputStream())
-                else -> file.outputStream()
-            }.use {
-                logger.trace { "Saving entity: ${ent.type} to file: $path" }
-                fst.encodeToStream(it, value)
+            FstSerialization(ent, serializationSerializationSettings, value, tag)
+        }
+        SerializationType.KRYO -> {
+            KryoSerialization(value, ent, serializationSerializationSettings, tag)
+        }
+    }
+
+    private fun FstSerialization(
+        ent: Entity,
+        serializationSerializationSettings: SerializationSettings,
+        value: Any,
+        tag: String,
+    ) {
+        val file = createEntityFile(ent)
+        when (serializationSerializationSettings.compressType) {
+            CompressType.ZSTD -> ZstdCompressorOutputStream(file.outputStream())
+            else -> file.outputStream()
+        }.use {
+            logger.trace { "Saving entity: ${ent.type} to file" }
+            fst.encodeToStream(it, value)
+            ent.setProperty(tag, file.absolutePath)
+        }
+    }
+
+    private fun KryoSerialization(
+        value: Any,
+        ent: Entity,
+        serializationSerializationSettings: SerializationSettings,
+        tag: String,
+    ) {
+        val file = createEntityFile(ent)
+        when (serializationSerializationSettings.compressType) {
+            CompressType.ZSTD -> ZstdCompressorOutputStream(file.outputStream())
+            else -> file.outputStream()
+        }.let { outputStream ->
+            Output(outputStream).use {
+                kryo.writeClassAndObject(it, value)
                 ent.setProperty(tag, file.absolutePath)
             }
         }
+    }
+
+    private fun createEntityFile(ent: Entity): File {
+        val path = "${ent.store.location}\\${ent.type.replace(":", "\\")}"
+        Files.createDirectories(Paths.get(path))
+        return File(path, "${UUID.randomUUID()}.bin")
     }
 
 
