@@ -30,7 +30,6 @@ import java.io.*
 import java.nio.file.*
 import java.util.*
 
-import com.esotericsoftware.kryo.Kryo
 import com.esotericsoftware.kryo.io.*
 
 
@@ -183,14 +182,14 @@ class XodusEncoder(
         tag: String,
     ) = when (serializationSerializationSettings.serializationType) {
         SerializationType.FST -> {
-            FstSerialization(ent, serializationSerializationSettings, value, tag)
+            fstSerialization(ent, serializationSerializationSettings, value, tag)
         }
         SerializationType.KRYO -> {
-            KryoSerialization(value, ent, serializationSerializationSettings, tag)
+            kryoSerialization(value, ent, serializationSerializationSettings, tag)
         }
     }
 
-    private fun FstSerialization(
+    private fun fstSerialization(
         ent: Entity,
         serializationSerializationSettings: SerializationSettings,
         value: Any,
@@ -207,7 +206,7 @@ class XodusEncoder(
         }
     }
 
-    private fun KryoSerialization(
+    private fun kryoSerialization(
         value: Any,
         ent: Entity,
         serializationSerializationSettings: SerializationSettings,
@@ -219,7 +218,9 @@ class XodusEncoder(
             else -> file.outputStream()
         }.let { outputStream ->
             Output(outputStream).use {
-                kryo.writeClassAndObject(it, value)
+                kryo {
+                    writeClassAndObject(it, value)
+                }
                 ent.setProperty(tag, file.absolutePath)
             }
         }

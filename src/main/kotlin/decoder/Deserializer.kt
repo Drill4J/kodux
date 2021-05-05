@@ -128,7 +128,6 @@ class XodusDecoder(
         }
         SerializationType.KRYO -> {
             val blob = ent.getProperty(tag) as String
-            kryo.classLoader = classLoader
             when (deserializationSettings.compressType) {
                 CompressType.ZSTD -> ZstdCompressorInputStream(File(blob).inputStream())
                 else -> File(blob).inputStream()
@@ -136,7 +135,10 @@ class XodusDecoder(
                 Input(inputStream).use {
                     logger.trace { "Reading entity: ${ent.type} from file: $blob" }
                     @Suppress("UNCHECKED_CAST")
-                    kryo.readClassAndObject(it) as T
+                    kryo {
+                        this.classLoader = classLoader
+                        readClassAndObject(it) as T
+                    }
                 }
             }
         }
