@@ -18,11 +18,24 @@ package com.epam.kodux.util
 import com.esotericsoftware.kryo.*
 import com.esotericsoftware.kryo.io.*
 import com.esotericsoftware.kryo.serializers.*
+import com.esotericsoftware.kryo.util.*
 
-//TODO EPMDJ-7047
-val kryo = Kryo().also {
-    it.isRegistrationRequired = false
-    it.register(String::class.java, CustomStringSerializer())
+
+private val kryoPool: Pool<Kryo> = object : Pool<Kryo>(true, true, 8) {
+    override fun create(): Kryo = Kryo().also {
+        it.isRegistrationRequired = false
+        it.register(String::class.java, CustomStringSerializer())
+    }
+}
+
+fun <T> kryo(block: Kryo.() -> T): T = kryoPool.run {
+    obtain().let { kryo ->
+        try {
+            block(kryo)
+        } finally {
+            free(kryo)
+        }
+    }
 }
 
 
