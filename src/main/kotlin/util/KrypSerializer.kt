@@ -29,10 +29,11 @@ private val kryoPool: Pool<Kryo> = object : Pool<Kryo>(true, true, 8) {
     }
 }
 
-fun <T> kryo(block: Kryo.() -> T): T = kryoPool.run {
+internal inline fun <T> kryo(classLoader: ClassLoader, block: Kryo.(ClassLoader) -> T): T = kryoPool.run {
     obtain().let { kryo ->
         try {
-            block(kryo)
+            kryo.classLoader = classLoader
+            block(kryo, classLoader)
         } finally {
             free(kryo)
         }

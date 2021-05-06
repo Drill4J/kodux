@@ -132,8 +132,7 @@ class XodusDecoder(
                 CustomInput(inputStream).use {
                     logger.trace { "Reading entity: ${ent.type} from file: $blob" }
                     @Suppress("UNCHECKED_CAST")
-                    kryo {
-                        this.classLoader = classLoader
+                    kryo(classLoader) { _ ->
                         readClassAndObject(it) as T
                     }
                 }
