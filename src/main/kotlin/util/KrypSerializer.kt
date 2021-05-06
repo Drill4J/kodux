@@ -20,19 +20,21 @@ import com.esotericsoftware.kryo.io.*
 import com.esotericsoftware.kryo.serializers.*
 import com.esotericsoftware.kryo.util.*
 import java.io.*
+import java.lang.ref.*
+import java.util.*
 
 
-private val kryoPool: Pool<Kryo> = object : Pool<Kryo>(true, true, 8) {
+val kryoPool: Pool<Kryo> = object : Pool<Kryo>(true, true, 8) {
     override fun create(): Kryo = Kryo().also {
         it.isRegistrationRequired = false
         it.register(String::class.java, CustomStringSerializer())
     }
 }
 
-fun <T> kryo(block: Kryo.() -> T): T = kryoPool.run {
+inline fun <T> kryo(classLoader: ClassLoader, block: Kryo.(ClassLoader) -> T): T = kryoPool.run {
     obtain().let { kryo ->
         try {
-            block(kryo)
+            block(kryo,classLoader)
         } finally {
             free(kryo)
         }
@@ -50,3 +52,35 @@ internal class CustomStringSerializer : DefaultSerializers.StringSerializer() {
         return super.read(kryo, input, type).weakIntern()
     }
 }
+
+
+class CustomSerializer<T>(private val defaultSerializer: Serializer<Any>) : Serializer<T>() {
+
+    override fun write(kryo: Kryo, output: Output, `object`: T) {
+        defaultSerializer.write(kryo, output, `object`)
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    override fun read(kryo: Kryo, input: Input, type: Class<out T>): T {
+        return (defaultSerializer.read(kryo, input, type) as T).weakIntern()
+    }
+
+    private val weakRefObjectPool = WeakHashMap<T, WeakReference<T>>(100)
+
+    private fun T.weakIntern(): T {
+        val cached = weakRefObjectPool[this]
+        if (cached != null) {
+            val value = cached.get()
+            if (value != null) return value
+        }
+        weakRefObjectPool[this] = WeakReference(this)
+        return this
+    }
+}
+
+inline fun <reified T> Kryo.customSerializer() = CustomSerializer<T>(getDefaultSerializer(T::class.java))
+
+fun <T> Kryo.customSerializer(type: Class<T>) = CustomSerializer<T>(getDefaultSerializer(type))
+
+
+

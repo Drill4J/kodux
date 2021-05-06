@@ -26,6 +26,7 @@ annotation class Id
 annotation class StreamSerialization(
     val serializationType: SerializationType,
     val compressType: CompressType,
+    val poolRegistration: Array<String>, //TODO Replace
 )
 
 enum class SerializationType {
@@ -39,11 +40,17 @@ enum class CompressType {
 internal fun getSerializationSettings(
     annotation: List<Annotation>,
 ) = annotation.firstOrNull { it is StreamSerialization }?.let {
+
     val customSerialization = it as StreamSerialization
-    SerializationSettings(customSerialization.serializationType, customSerialization.compressType)
+    SerializationSettings(
+        customSerialization.serializationType,
+        customSerialization.compressType,
+        customSerialization.poolRegistration
+    )
 }
 
 internal class SerializationSettings(
     val serializationType: SerializationType,
     val compressType: CompressType,
+    val poolRegistration: Array<String>,
 )

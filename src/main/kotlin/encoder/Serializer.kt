@@ -217,9 +217,9 @@ class XodusEncoder(
             CompressType.ZSTD -> ZstdCompressorOutputStream(file.outputStream())
             else -> file.outputStream()
         }.let { outputStream ->
-            Output(outputStream).use {
-                kryo {
-                    writeClassAndObject(it, value)
+            Output(outputStream).use { outputStream ->
+                kryo(classLoader) {
+                    writeClassAndObject(outputStream, value)
                 }
                 ent.setProperty(tag, file.absolutePath)
             }
@@ -312,11 +312,12 @@ class XodusEncoder(
         value: T,
     ) {
         encodeElement(descriptor, index)
+        val annotation = descriptor.getElementAnnotations(index)
         encodeTaggedObject(
             descriptor.getTag(index),
             value as Any,
             descriptor.getElementAnnotations(index).any { it is Id },
-            getSerializationSettings(descriptor.getElementAnnotations(index)),
+            getSerializationSettings(annotation),
             unchecked(serializer)
         )
     }

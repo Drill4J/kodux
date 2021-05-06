@@ -196,12 +196,33 @@ class KryoTest {
         assertTrue(outputStream.toByteArray().size > ZSTDOutputStream.toByteArray().size)
     }
 
+    @Test
+    fun `trtete`() {
+        val kryo = Kryo().also {
+            it.isRegistrationRequired = false
+            it.register(Method::class.java, it.customSerializer<Method>())
+        }
+
+        val output = ByteArrayOutputStream()
+        val customSerializer = kryo.customSerializer<Wrapper>()
+        val output1 = Output(output).use {
+            kryo.writeObject(it, Wrapper(Array(100) { Method("a", "b", "c", "d") }), customSerializer)
+        }
+        val toByteArray = output.toByteArray()
+        val decodeToString = toByteArray.decodeToString()
+        val input = Input(ByteArrayInputStream(toByteArray)).use {
+            val a = kryo.readObject(it, Wrapper::class.java, customSerializer)
+            println(a)
+        }
+
+    }
+
     private suspend fun mapInMapWrapperKryo(id: CompositeId): MapInMapWrapperKryo {
         val mapInMapWrapper = MapInMapWrapperKryo(id, mutableMapOf())
         for (i in 0..4) {
             val a = MapWrapperKryo(i, mutableMapOf())
             for (j in 0..4) {
-                a.secondMap["$j"] = TestClass("$j".weakIntern(), j)
+                a.secondMap["$j"] = TestClass("1".weakIntern(), 1)
             }
             mapInMapWrapper.map["$i"] = a
         }
@@ -229,9 +250,12 @@ class KryoTest {
 @Serializable
 data class StoredClassData(
     @Id val version: String,
-    @StreamSerialization(SerializationType.KRYO, CompressType.NONE)
+    @StreamSerialization(SerializationType.KRYO, CompressType.NONE, ["com.epam.kodux.Method"])
     val data: ClassData,
 )
+
+@Serializable
+data class Wrapper(val array: Array<Method>)
 
 @Serializable
 data class ClassData(
