@@ -72,7 +72,7 @@ class KryoTest {
         }
 
     @Test
-    fun `deserialized string must be in string pool `() = runBlocking {
+    fun `deserialized string must be in string pool simple structure`() = runBlocking {
         val id = CompositeId("one", 1)
         val list = listOf("one".weakIntern(), "two".weakIntern(), "three".weakIntern())
         agentStore.store(KRYOSerializationTestObject(id, list))
@@ -80,6 +80,14 @@ class KryoTest {
         for (i in list.indices) {
             assertSame(list[i], streamSerializationTestObject!!.list[i])
         }
+    }
+
+    @Test
+    fun `deserialized string must be in string pool complex structure`() = runBlocking {
+        val id = CompositeId("one", 1)
+        val actualMap = mapInMapWrapperKryo(id)
+        val expected = agentStore.findById<MapInMapWrapperKryo>(id)
+        assetStringsInPoolInMapInMapWrapperKryo(actualMap, expected!!)
     }
 
     @Test
@@ -185,21 +193,34 @@ class KryoTest {
             kryo.writeObject(it, list)
         }
 
-        assert(outputStream.toByteArray().size > ZSTDOutputStream.toByteArray().size)
+        assertTrue(outputStream.toByteArray().size > ZSTDOutputStream.toByteArray().size)
     }
 
     private suspend fun mapInMapWrapperKryo(id: CompositeId): MapInMapWrapperKryo {
         val mapInMapWrapper = MapInMapWrapperKryo(id, mutableMapOf())
-        for (i in 1..5) {
+        for (i in 0..4) {
             val a = MapWrapperKryo(i, mutableMapOf())
-            for (j in 1..5) {
-                a.secondMap["$j"] = TestClass("$j", j)
+            for (j in 0..4) {
+                a.secondMap["$j"] = TestClass("$j".weakIntern(), j)
             }
             mapInMapWrapper.map["$i"] = a
         }
         agentStore.store(mapInMapWrapper)
         return mapInMapWrapper
     }
+
+    private fun assetStringsInPoolInMapInMapWrapperKryo(actual: MapInMapWrapperKryo, expected: MapInMapWrapperKryo) {
+        for (i in actual.map.entries.indices) {
+            val actualMap: MapWrapperKryo = actual.map.getValue("$i")
+            val expectedMap: MapWrapperKryo = expected.map.getValue("$i")
+            for (j in actualMap.secondMap.entries.indices) {
+                val actualString = actualMap.secondMap.getValue("$j").string
+                val expectedString = expectedMap.secondMap.getValue("$j").string
+                assertSame(actualString, expectedString)
+            }
+        }
+    }
+
 
 }
 

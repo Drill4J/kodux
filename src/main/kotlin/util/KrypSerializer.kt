@@ -19,6 +19,7 @@ import com.esotericsoftware.kryo.*
 import com.esotericsoftware.kryo.io.*
 import com.esotericsoftware.kryo.serializers.*
 import com.esotericsoftware.kryo.util.*
+import java.io.*
 
 
 private val kryoPool: Pool<Kryo> = object : Pool<Kryo>(true, true, 8) {
@@ -38,6 +39,11 @@ fun <T> kryo(block: Kryo.() -> T): T = kryoPool.run {
     }
 }
 
+internal class CustomInput(inputStream: InputStream) : Input(inputStream) {
+    override fun readString(): String {
+        return super.readString().weakIntern()
+    }
+}
 
 internal class CustomStringSerializer : DefaultSerializers.StringSerializer() {
     override fun read(kryo: Kryo?, input: Input?, type: Class<out String>?): String {

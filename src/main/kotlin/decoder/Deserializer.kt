@@ -17,8 +17,6 @@ package com.epam.kodux.decoder
 
 import com.epam.kodux.*
 import com.epam.kodux.util.*
-import com.esotericsoftware.kryo.*
-import com.esotericsoftware.kryo.io.*
 import jetbrains.exodus.entitystore.*
 import kotlinx.serialization.*
 import kotlinx.serialization.builtins.*
@@ -28,7 +26,6 @@ import kotlinx.serialization.internal.*
 import kotlinx.serialization.modules.*
 import mu.*
 import org.apache.commons.compress.compressors.zstandard.*
-import org.nustaq.serialization.*
 import java.io.*
 
 private val logger = KotlinLogging.logger { }
@@ -132,7 +129,7 @@ class XodusDecoder(
                 CompressType.ZSTD -> ZstdCompressorInputStream(File(blob).inputStream())
                 else -> File(blob).inputStream()
             }.let { inputStream ->
-                Input(inputStream).use {
+                CustomInput(inputStream).use {
                     logger.trace { "Reading entity: ${ent.type} from file: $blob" }
                     @Suppress("UNCHECKED_CAST")
                     kryo {
