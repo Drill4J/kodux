@@ -217,9 +217,9 @@ class XodusEncoder(
             CompressType.ZSTD -> ZstdCompressorOutputStream(file.outputStream())
             else -> file.outputStream()
         }.let { outputStream ->
-            Output(outputStream).use {
-                kryo(classLoader) { _ ->
-                    writeClassAndObject(it, value)
+            Output(outputStream).use { outputStream ->
+                kryo(classLoader) {
+                    writeClassAndObject(outputStream, value)
                 }
                 ent.setProperty(tag, file.absolutePath)
             }

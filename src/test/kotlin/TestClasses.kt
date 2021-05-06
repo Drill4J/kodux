@@ -50,14 +50,14 @@ data class CompositeData(
 @Serializable
 data class FSTSerializationTestObject(
     @Id val id: CompositeId,
-    @StreamSerialization(SerializationType.FST, CompressType.ZSTD)
+    @StreamSerialization(SerializationType.FST, CompressType.ZSTD, [])
     val list: List<String>,
 ) : java.io.Serializable
 
 @Serializable
 data class KRYOSerializationTestObject(
     @Id val id: CompositeId,
-    @StreamSerialization(SerializationType.KRYO, CompressType.ZSTD)
+    @StreamSerialization(SerializationType.KRYO, CompressType.ZSTD, [])
     val list: List<String>,
 ) : java.io.Serializable
 
@@ -71,7 +71,7 @@ data class MapInMapWrapper(
 @Serializable
 data class MapWrapper(
     val id: Int,
-    @StreamSerialization(SerializationType.FST, CompressType.ZSTD)
+    @StreamSerialization(SerializationType.FST, CompressType.ZSTD, [])
     val secondMap: MutableMap<String, TestClass>,
 ) : java.io.Serializable
 
@@ -82,21 +82,21 @@ data class TestClass(val string: String, val int: Int) : java.io.Serializable
 @Serializable
 data class StreamSerializationKryoStingMap(
     @Id val id: CompositeId,
-    @StreamSerialization(SerializationType.KRYO, CompressType.ZSTD)
+    @StreamSerialization(SerializationType.KRYO, CompressType.ZSTD, [])
     val map: List<String>,
 )
 
 @Serializable
 data class StreamSerializationKryoTestObject(
     @Id val id: CompositeId,
-    @StreamSerialization(SerializationType.KRYO, CompressType.ZSTD)
+    @StreamSerialization(SerializationType.KRYO, CompressType.ZSTD, [])
     val map: TestClass,
 )
 
 @Serializable
 data class StreamSerializationKryoTestObjectTest(
     @Id val id: CompositeId,
-    @StreamSerialization(SerializationType.KRYO, CompressType.ZSTD)
+    @StreamSerialization(SerializationType.KRYO, CompressType.ZSTD, [])
     val testClass: TestClass,
 )
 
@@ -109,7 +109,7 @@ data class MapInMapWrapperKryo(
 @Serializable
 data class MapWrapperKryo(
     val id: Int,
-    @StreamSerialization(SerializationType.KRYO, CompressType.ZSTD)
+    @StreamSerialization(SerializationType.KRYO, CompressType.ZSTD, [TestClass::class])
     val secondMap: MutableMap<String, TestClass>,
 )
 
@@ -251,7 +251,7 @@ data class ObjectWithTwoAnnotation(
 data class FinishSession(
     @Id
     val sessionId: String,
-    @StreamSerialization(SerializationType.FST, CompressType.ZSTD)
+    @StreamSerialization(SerializationType.FST, CompressType.ZSTD, [])
     val execClassData: List<ExecClassData>,
 ) : java.io.Serializable
 

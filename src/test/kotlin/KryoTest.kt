@@ -196,6 +196,22 @@ class KryoTest {
         assertTrue(outputStream.toByteArray().size > ZSTDOutputStream.toByteArray().size)
     }
 
+    @Test
+    fun `objects specified in annotation must be the same`(): Unit = runBlocking {
+        val id = CompositeId("one", 1)
+        val mapWrapperKryo = MapInMapWrapperKryo(
+            id,
+            mutableMapOf("" to MapWrapperKryo(1, (0..10).associate { "$it" to TestClass("String", 10) }.toMutableMap()))
+        )
+        agentStore.store(mapWrapperKryo)
+        val loaded = agentStore.findById<MapInMapWrapperKryo>(id)!!
+
+        loaded.map.values.first().secondMap.values.reduce { m1, m2 ->
+            assertSame(m1, m2)
+            m1
+        }
+    }
+
     private suspend fun mapInMapWrapperKryo(id: CompositeId): MapInMapWrapperKryo {
         val mapInMapWrapper = MapInMapWrapperKryo(id, mutableMapOf())
         for (i in 0..4) {
@@ -229,7 +245,7 @@ class KryoTest {
 @Serializable
 data class StoredClassData(
     @Id val version: String,
-    @StreamSerialization(SerializationType.KRYO, CompressType.NONE)
+    @StreamSerialization(SerializationType.KRYO, CompressType.NONE, [Method::class])
     val data: ClassData,
 )
 

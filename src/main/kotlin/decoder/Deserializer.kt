@@ -132,7 +132,14 @@ class XodusDecoder(
                 CustomInput(inputStream).use {
                     logger.trace { "Reading entity: ${ent.type} from file: $blob" }
                     @Suppress("UNCHECKED_CAST")
-                    kryo(classLoader) { _ ->
+                    kryo(classLoader) { classLoader ->
+                        runCatching {
+                            deserializationSettings.poolRegistration.forEach { kClass ->
+                                register(kClass.java, customSerializer(kClass.java))
+                            }
+                        }.onFailure {
+                            logger.error(it) { "Pleas check input class name " }
+                        }
                         readClassAndObject(it) as T
                     }
                 }
