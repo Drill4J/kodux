@@ -16,6 +16,7 @@
 package com.epam.kodux
 
 import kotlinx.serialization.*
+import kotlin.reflect.*
 
 @SerialInfo
 @Target(AnnotationTarget.PROPERTY, AnnotationTarget.CLASS)
@@ -26,6 +27,7 @@ annotation class Id
 annotation class StreamSerialization(
     val serializationType: SerializationType,
     val compressType: CompressType,
+    val poolRegistration: Array<KClass<*>> = [],
 )
 
 enum class SerializationType {
@@ -39,11 +41,24 @@ enum class CompressType {
 internal fun getSerializationSettings(
     annotation: List<Annotation>,
 ) = annotation.firstOrNull { it is StreamSerialization }?.let {
+
     val customSerialization = it as StreamSerialization
-    SerializationSettings(customSerialization.serializationType, customSerialization.compressType)
+
+    //raw hack for annotation processing issues.
+    @Suppress("UNCHECKED_CAST")
+    val poolRegistration: Array<KClass<*>> = customSerialization::class.java.declaredMethods.first { method ->
+        method.name == customSerialization::poolRegistration.name
+    }(customSerialization) as Array<KClass<*>>
+
+    SerializationSettings(
+        customSerialization.serializationType,
+        customSerialization.compressType,
+        poolRegistration
+    )
 }
 
 internal class SerializationSettings(
     val serializationType: SerializationType,
     val compressType: CompressType,
+    val poolRegistration: Array<KClass<*>>,
 )
