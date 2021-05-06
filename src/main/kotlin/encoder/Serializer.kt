@@ -218,7 +218,7 @@ class XodusEncoder(
             else -> file.outputStream()
         }.let { outputStream ->
             Output(outputStream).use {
-                kryo {
+                kryo(classLoader) { _ ->
                     writeClassAndObject(it, value)
                 }
                 ent.setProperty(tag, file.absolutePath)
