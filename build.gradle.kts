@@ -10,14 +10,6 @@ plugins {
 
 val scriptUrl: String by extra
 
-apply(from = "$scriptUrl/git-version.gradle.kts")
-
-repositories {
-    mavenLocal()
-    apply(from = "$scriptUrl/maven-repo.gradle.kts")
-    jcenter()
-}
-
 val coroutinesVersion: String by project
 val serializationVersion: String by project
 val xodusVersion: String by project
@@ -39,6 +31,22 @@ dependencies {
     testImplementation(kotlin("test-junit"))
 }
 
+allprojects {
+
+    apply(from = "$scriptUrl/git-version.gradle.kts")
+    repositories {
+        mavenLocal()
+        mavenCentral()
+        apply(from = "$scriptUrl/maven-repo.gradle.kts")
+        jcenter()
+    }
+
+    apply(plugin = "org.jetbrains.kotlin.plugin.noarg")
+    noArg {
+        annotation("kotlinx.serialization.Serializable")
+    }
+}
+
 java.targetCompatibility = JavaVersion.VERSION_1_8
 
 kotlin {
@@ -53,10 +61,6 @@ kotlin {
     ).let { annotations ->
         sourceSets.all { annotations.forEach(languageSettings::useExperimentalAnnotation) }
     }
-}
-
-noArg {
-    annotation("kotlinx.serialization.Serializable")
 }
 
 publishing {

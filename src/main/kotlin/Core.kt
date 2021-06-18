@@ -27,12 +27,12 @@ private val logger = KotlinLogging.logger { }
 
 typealias KoduxTransaction = StoreTransaction
 
-inline fun <reified T : Any> KoduxTransaction.store(any: T) {
+inline fun <reified T : Any> KoduxTransaction.store(any: T, classLoader1: ClassLoader? = null) {
     this.findEntity(any)?.apply {
         deleteEntityRecursively(this, fieldsAnnotatedByStreamSerialization(T::class.serializer().descriptor))
     }
     val obj = this.newEntity(any::class.simpleName.toString())
-    val classLoader = T::class.java.classLoader
+    val classLoader = classLoader1 ?: T::class.java.classLoader
     XodusEncoder(this, classLoader, obj).encodeSerializableValue(T::class.serializer(), any)
 }
 
@@ -45,10 +45,10 @@ inline fun <reified T : Any> KoduxTransaction.getAll(): List<T> {
     }
 }
 
-inline fun <reified T : Any> KoduxTransaction.findById(id: Any): T? {
+inline fun <reified T : Any> KoduxTransaction.findById(id: Any, classLoader1: ClassLoader? = null): T? {
     val serializer = T::class.serializer()
     val idName = idName(serializer.descriptor)!!
-    val classLoader = T::class.java.classLoader
+    val classLoader = classLoader1 ?: T::class.java.classLoader
     return findById<T>(idName, id)?.let {
         XodusDecoder(this, classLoader, it, idName).decodeSerializableValue(serializer)
     }
@@ -56,10 +56,11 @@ inline fun <reified T : Any> KoduxTransaction.findById(id: Any): T? {
 
 inline fun <reified T : Any> KoduxTransaction.findBy(
     noinline expression: Expression<T>.() -> Unit,
+    classLoader1: ClassLoader? = null,
 ): List<T> = run {
     val serializer = T::class.serializer()
     val idName = idName(serializer.descriptor)!!
-    computeWithExpression(expression, Expression(idName))
+    computeWithExpression(expression, Expression(idName), classLoader1)
 }
 
 inline fun <reified T : Any> KoduxTransaction.deleteAll() {
@@ -124,11 +125,12 @@ inline fun <reified T : Any> KoduxTransaction.findById(
 
 inline fun <reified T : Any> KoduxTransaction.computeWithExpression(
     noinline expression: Expression<T>.() -> Unit, expr: Expression<T>,
+    classLoader1: ClassLoader? = null,
 ): List<T> = run {
     expression(expr)
     val entityIterable = expr.process(this, T::class)
     val serializer = T::class.serializer()
     val idName = idName(serializer.descriptor)
-    val classLoader = T::class.java.classLoader
+    val classLoader = classLoader1 ?: T::class.java.classLoader
     entityIterable.map { XodusDecoder(this, classLoader, it, idName).decodeSerializableValue(serializer) }
 }
