@@ -202,7 +202,7 @@ class XodusEncoder(
         }.use {
             logger.trace { "Saving entity: ${ent.type} to file" }
             fst.encodeToStream(it, value)
-            ent.setProperty(tag, file.absolutePath)
+            ent.setProperty(tag, file.path)
         }
     }
 
@@ -221,7 +221,7 @@ class XodusEncoder(
                 kryo(classLoader) {
                     writeClassAndObject(outputStream, value)
                 }
-                ent.setProperty(tag, file.absolutePath)
+                ent.setProperty(tag, file.path)
             }
         }
     }
