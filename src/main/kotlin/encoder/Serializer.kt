@@ -221,7 +221,7 @@ class XodusEncoder(
                 kryo(classLoader) {
                     writeClassAndObject(outputStream, value)
                 }
-                ent.setProperty(tag, file.absolutePath)
+                ent.setProperty(tag, file.path)
             }
         }
     }
