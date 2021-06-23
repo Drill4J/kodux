@@ -17,7 +17,6 @@ package com.epam.kodux
 
 import com.epam.kodux.decoder.*
 import com.epam.kodux.encoder.*
-import com.epam.kodux.util.*
 import jetbrains.exodus.entitystore.*
 import kotlinx.serialization.*
 import mu.*
@@ -27,40 +26,40 @@ private val logger = KotlinLogging.logger { }
 
 typealias KoduxTransaction = StoreTransaction
 
-inline fun <reified T : Any> KoduxTransaction.store(any: T, classLoader1: ClassLoader? = null) {
+inline fun <reified T : Any> KoduxTransaction.store(any: T, classLoader: ClassLoader? = null) {
     this.findEntity(any)?.apply {
         deleteEntityRecursively(this, fieldsAnnotatedByStreamSerialization(T::class.serializer().descriptor))
     }
     val obj = this.newEntity(any::class.simpleName.toString())
-    val classLoader = classLoader1 ?: T::class.java.classLoader
-    XodusEncoder(this, classLoader, obj).encodeSerializableValue(T::class.serializer(), any)
+    val loader = classLoader ?: T::class.java.classLoader
+    XodusEncoder(this, loader, obj).encodeSerializableValue(T::class.serializer(), any)
 }
 
-inline fun <reified T : Any> KoduxTransaction.getAll(): List<T> {
+inline fun <reified T : Any> KoduxTransaction.getAll(classLoader: ClassLoader? = null): List<T> {
     val serializer = T::class.serializer()
     val idName = idName(serializer.descriptor)
-    val classLoader = T::class.java.classLoader
+    val loader = classLoader ?: T::class.java.classLoader
     return this.getAll(T::class.simpleName!!).map {
-        XodusDecoder(this, classLoader, it, idName).decodeSerializableValue(serializer)
+        XodusDecoder(this, loader, it, idName).decodeSerializableValue(serializer)
     }
 }
 
-inline fun <reified T : Any> KoduxTransaction.findById(id: Any, classLoader1: ClassLoader? = null): T? {
+inline fun <reified T : Any> KoduxTransaction.findById(id: Any, classLoader: ClassLoader? = null): T? {
     val serializer = T::class.serializer()
     val idName = idName(serializer.descriptor)!!
-    val classLoader = classLoader1 ?: T::class.java.classLoader
+    val loader = classLoader ?: T::class.java.classLoader
     return findById<T>(idName, id)?.let {
-        XodusDecoder(this, classLoader, it, idName).decodeSerializableValue(serializer)
+        XodusDecoder(this, loader, it, idName).decodeSerializableValue(serializer)
     }
 }
 
 inline fun <reified T : Any> KoduxTransaction.findBy(
+    classLoader: ClassLoader? = null,
     noinline expression: Expression<T>.() -> Unit,
-    classLoader1: ClassLoader? = null,
 ): List<T> = run {
     val serializer = T::class.serializer()
     val idName = idName(serializer.descriptor)!!
-    computeWithExpression(expression, Expression(idName), classLoader1)
+    computeWithExpression(expression, Expression(idName), classLoader)
 }
 
 inline fun <reified T : Any> KoduxTransaction.deleteAll() {
@@ -106,10 +105,12 @@ private fun Collection<String>.deleteFiles(entity: Entity) = forEach { name ->
             Files.delete(Paths.get(it))
         }
     }.onFailure {
-        logger.error(it) { "Couldn't delete file for ${entity.type} Reason: ${it.message}" }
+        when (it) {
+            is NoSuchFileException -> Unit
+            else -> logger.error(it) { "Couldn't delete file for ${entity.type} Reason: ${it.message}" }
+        }
     }
 }
-
 
 inline fun <reified T : Any> KoduxTransaction.findEntity(any: T): Entity? {
     val (idName, id) = idPair(any)

@@ -23,11 +23,10 @@ import java.io.*
 import java.lang.ref.*
 import java.util.*
 
-
 private val kryoPool: Pool<Kryo> = object : Pool<Kryo>(true, true, 8) {
     override fun create(): Kryo = Kryo().also {
         it.isRegistrationRequired = false
-        it.register(String::class.java, CustomStringSerializer())
+        it.register(LinkedHashMap<Any, Any>().keys::class.java, SetSerializer(it.getSerializer(HashSet::class.java)))
     }
 }
 
@@ -82,4 +81,15 @@ class CustomSerializer<T>(private val defaultSerializer: Serializer<Any>) : Seri
 fun <T> Kryo.customSerializer(type: Class<T>) = CustomSerializer<T>(getDefaultSerializer(type))
 
 
+class SetSerializer(private val defaultSerializer: Serializer<Any>) : Serializer<Set<*>>() {
+
+    override fun write(kryo: Kryo?, output: Output?, `object`: Set<*>?) {
+        defaultSerializer.write(kryo, output, HashSet(`object`))
+    }
+
+    override fun read(kryo: Kryo?, input: Input?, type: Class<out Set<*>>?): Set<*> {
+        return defaultSerializer.read(kryo, input, HashSet::class.java) as Set<*>
+    }
+
+}
 

@@ -40,34 +40,40 @@ class StoreClient(private val store: PersistentEntityStoreImpl) : PersistentEnti
 
     }
 
-    suspend inline fun <reified T : Any> store(any: T, classLoader1: ClassLoader? = null) =
-        withContext(Dispatchers.IO) { executeInTransaction { txn -> txn.store(any, classLoader1) };any }
+    suspend inline fun <reified T : Any> store(
+        any: T,
+        classLoader: ClassLoader? = null,
+    ) = withContext(Dispatchers.IO) { executeInTransaction { txn -> txn.store(any, classLoader) };any }
 
-    suspend inline fun <reified T : Any> getAll(): Collection<T> =
-        withContext(Dispatchers.IO) { computeInReadonlyTransaction { txn -> txn.getAll() } }
+    suspend inline fun <reified T : Any> getAll(
+        classLoader: ClassLoader? = null,
+    ): Collection<T> = withContext(Dispatchers.IO) { computeInReadonlyTransaction { txn -> txn.getAll(classLoader) } }
 
-    suspend inline fun <reified T : Any> findById(id: Any, classLoader1: ClassLoader? = null): T? =
-        withContext(Dispatchers.IO) { computeInReadonlyTransaction { txn -> txn.findById<T>(id, classLoader1) } }
+    suspend inline fun <reified T : Any> findById(
+        id: Any,
+        classLoader: ClassLoader? = null,
+    ): T? = withContext(Dispatchers.IO) { computeInReadonlyTransaction { txn -> txn.findById<T>(id, classLoader) } }
 
 
     suspend inline fun <reified T : Any> findBy(
-        classLoader1: ClassLoader? = null,
+        classLoader: ClassLoader? = null,
         noinline expression: Expression<T>.() -> Unit,
-    ) = withContext(Dispatchers.IO) { computeInTransaction { txn -> txn.findBy(expression, classLoader1) } }
+    ) = withContext(Dispatchers.IO) { computeInTransaction { txn -> txn.findBy(classLoader, expression) } }
 
-    suspend inline fun <reified T : Any> deleteAll(): Unit =
-        withContext(Dispatchers.IO) { computeInTransaction { txn -> txn.deleteAll<T>() } }
+    suspend inline fun <reified T : Any> deleteAll(
+    ): Unit = withContext(Dispatchers.IO) { computeInTransaction { txn -> txn.deleteAll<T>() } }
 
-    suspend inline fun <reified T : Any> deleteById(id: Any): Unit = withContext(Dispatchers.IO) {
-        computeInTransaction { txn -> txn.deleteById<T>(id) }
-    }
+    suspend inline fun <reified T : Any> deleteById(
+        id: Any,
+    ): Unit = withContext(Dispatchers.IO) { computeInTransaction { txn -> txn.deleteById<T>(id) } }
 
-    suspend inline fun <reified T : Any> deleteBy(noinline expression: Expression<T>.() -> Unit): Unit =
-        withContext(Dispatchers.IO) {
-            computeInTransaction { txn ->
-                txn.deleteBy(expression)
-            }
+    suspend inline fun <reified T : Any> deleteBy(
+        noinline expression: Expression<T>.() -> Unit,
+    ): Unit = withContext(Dispatchers.IO) {
+        computeInTransaction { txn ->
+            txn.deleteBy(expression)
         }
+    }
 
 }
 
