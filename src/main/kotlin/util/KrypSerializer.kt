@@ -28,6 +28,7 @@ private val kryoPool: Pool<Kryo> = object : Pool<Kryo>(true, true, 8) {
     override fun create(): Kryo = Kryo().also {
         it.isRegistrationRequired = false
         it.register(String::class.java, CustomStringSerializer())
+        it.register(LinkedHashMap<Any, Any>().keys::class.java, SetSerializer(it.getSerializer(HashSet::class.java)))
     }
 }
 
@@ -55,14 +56,14 @@ internal class CustomStringSerializer : DefaultSerializers.StringSerializer() {
 }
 
 
-class CustomSerializer<T>(private val defaultSerializer: Serializer<Any>) : Serializer<T>() {
+internal class CustomSerializer<T>(private val defaultSerializer: Serializer<Any>) : Serializer<T>() {
 
-    override fun write(kryo: Kryo, output: Output, `object`: T) {
+    override fun write(kryo: Kryo?, output: Output?, `object`: T?) {
         defaultSerializer.write(kryo, output, `object`)
     }
 
     @Suppress("UNCHECKED_CAST")
-    override fun read(kryo: Kryo, input: Input, type: Class<out T>): T {
+    override fun read(kryo: Kryo?, input: Input?, type: Class<out T>?): T {
         return (defaultSerializer.read(kryo, input, type) as T).weakIntern()
     }
 
@@ -79,7 +80,17 @@ class CustomSerializer<T>(private val defaultSerializer: Serializer<Any>) : Seri
     }
 }
 
-fun <T> Kryo.customSerializer(type: Class<T>) = CustomSerializer<T>(getDefaultSerializer(type))
+internal fun <T> Kryo.customSerializer(type: Class<T>) = CustomSerializer<T>(getDefaultSerializer(type))
 
 
+private class SetSerializer(private val defaultSerializer: Serializer<Any>) : Serializer<Set<*>>() {
 
+    override fun write(kryo: Kryo?, output: Output?, `object`: Set<*>?) {
+        defaultSerializer.write(kryo, output, HashSet(`object`))
+    }
+
+    override fun read(kryo: Kryo?, input: Input?, type: Class<out Set<*>>?): Set<*> {
+        return defaultSerializer.read(kryo, input, HashSet::class.java) as Set<*>
+    }
+
+}
